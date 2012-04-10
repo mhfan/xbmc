@@ -86,6 +86,9 @@
   #define HAS_UPNP
 #endif
 
+#ifdef HAVE_LIBMPEG2
+  #define HAS_LIBMPEG2
+#endif
 /**********************
  * Non-free Components
  **********************/
@@ -126,6 +129,7 @@
 #define HAVE_LIBVORBISENC
 #define HAS_MYSQL
 #define HAS_UPNP
+#define HAS_LIBMPEG2
 
 #define DECLARE_UNUSED(a,b) a b;
 #endif

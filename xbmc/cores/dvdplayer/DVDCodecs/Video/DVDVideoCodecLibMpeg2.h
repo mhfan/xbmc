@@ -20,6 +20,8 @@
  *
  */
 
+#include "system.h"
+#if defined(HAS_LIBMPEG2)
 #include "DVDVideoCodec.h"
 #include "DllLibMpeg2.h"
 
@@ -60,3 +62,4 @@ protected:
   DVDVideoPicture m_pVideoBuffer[3];
   DVDVideoPicture* m_pCurrentBuffer;
 };
+#endif
