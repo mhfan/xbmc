@@ -1109,3 +1109,108 @@ void CXBMCApp::SetSystemVolume(JNIEnv *env, float percent)
   env->DeleteLocalRef(cAudioManager);
 }
 
+bool CXBMCApp::CanPlay(const std::string &path, const std::string &type /* = "video" */)
+{
+ if (0)
+  android_printf("%s", __PRETTY_FUNCTION__);
+  if (m_activity == NULL ||
+     (type != "video" && type != "audio" && type != "music"))
+    return false;
+
+  JNIEnv *env = NULL;
+  AttachCurrentThread(&env);
+  jobject oActivity = m_activity->clazz;
+
+  jobject oIntentPlay = getPlayIntent(path, type);
+
+  // List<ResolveInfo> oList = getPackageManager().queryIntentActivities(oIntentPlay, PackageManager.MATCH_DEFAULT_ONLY);
+ if (0)
+  android_printf(" => List<ResolveInfo> oList = getPackageManager().queryIntentActivities(oIntentPlay, PackageManager.MATCH_DEFAULT_ONLY);");
+  jclass cActivity = env->GetObjectClass(oActivity);
+  jmethodID midActivityGetPackageManager = env->GetMethodID(cActivity, "getPackageManager", "()Landroid/content/pm/PackageManager;");
+  jobject oPackageManager = env->CallObjectMethod(oActivity, midActivityGetPackageManager);
+  jclass cPackageManager = env->GetObjectClass(oPackageManager);
+  jmethodID midPackageManagerQueryIntentActivities = env->GetMethodID(cPackageManager, "queryIntentActivities", "(Landroid/content/Intent;I)Ljava/util/List;");
+  jobject oList = env->CallObjectMethod(oPackageManager, midPackageManagerQueryIntentActivities, oIntentPlay, 0x00010000 /* PackageManager.MATCH_DEFAULT_ONLY */);
+  env->DeleteLocalRef(cPackageManager);
+  env->DeleteLocalRef(oPackageManager);
+  env->DeleteLocalRef(cActivity);
+  env->DeleteLocalRef(oIntentPlay);
+
+  // return oList.size() > 0;
+ if (0)
+  android_printf(" => return oList.size() > 0");
+  jclass cList = env->GetObjectClass(oList);
+  jmethodID midListSize = env->GetMethodID(cList, "size", "()I");
+  jint iSize = env->CallIntMethod(oList, midListSize);
+ if (0)
+  android_printf(" => oList.size() = %d", iSize);
+  bool ret = iSize > 0;
+  env->DeleteLocalRef(cList);
+  env->DeleteLocalRef(oList);
+
+  DetachCurrentThread();
+
+  return ret;
+}
+
+bool CXBMCApp::Play(const std::string &path, const std::string &type /* = "video" */)
+{
+ if (0)
+  android_printf("%s", __PRETTY_FUNCTION__);
+  if (!CanPlay(path, type))
+    return false;
+
+  JNIEnv *env = NULL;
+  AttachCurrentThread(&env);
+  jobject oActivity = m_activity->clazz;
+
+  jobject oIntentPlay = getPlayIntent(path, type);
+
+  // startActivity(oIntentPlay);
+  jclass cActivity = env->GetObjectClass(oActivity);
+  jmethodID midActivityStartActivity = env->GetMethodID(cActivity, "startActivity", "(Landroid/content/Intent;)V");
+  env->CallVoidMethod(oActivity, midActivityStartActivity, oIntentPlay);
+  env->DeleteLocalRef(cActivity);
+  env->DeleteLocalRef(oIntentPlay);
+
+  DetachCurrentThread();
+  return true;
+}
+
+jobject CXBMCApp::getPlayIntent(const std::string &path, const std::string &type)
+{
+  JNIEnv *env = NULL;
+  AttachCurrentThread(&env);
+
+  // Intent oIntentPlay = new Intent(Intent.ACTION_VIEW);
+  jclass cIntent = env->FindClass("android/content/Intent");
+  jmethodID midIntentCtor = env->GetMethodID(cIntent, "<init>", "(Ljava/lang/String;)V");
+  jstring sIntentView = env->NewStringUTF("android.intent.action.VIEW"); // Intent.ACTION_VIEW
+  jobject oIntentPlay = env->NewObject(cIntent, midIntentCtor, sIntentView);
+  env->DeleteLocalRef(sIntentView);
+
+  // Uri oUri = Uri.parse(sPath);
+  jclass cUri = env->FindClass("android/net/Uri");
+  jmethodID midUriParse = env->GetStaticMethodID(cUri, "parse", "(Ljava/lang/String;)Landroid/net/Uri;");
+  jstring sPath = env->NewStringUTF(path.c_str());
+  jobject oUri = env->CallStaticObjectMethod(cUri, midUriParse, sPath);
+  env->DeleteLocalRef(sPath);
+  env->DeleteLocalRef(cUri);
+
+  // oIntentPlay.setDataAndType(oUri, "video/*");
+  jmethodID midIntentSetDataAndType = env->GetMethodID(cIntent, "setDataAndType", "(Landroid/net/Uri;Ljava/lang/String;)Landroid/content/Intent;");
+
+  jstring sMimeType = NULL;
+  if (type == "video")
+    sMimeType = env->NewStringUTF("video/*");
+  else if (type == "audio" || type == "music")
+    sMimeType = env->NewStringUTF("audio/*");
+
+  oIntentPlay = env->CallObjectMethod(oIntentPlay, midIntentSetDataAndType, oUri, sMimeType);
+  env->DeleteLocalRef(sMimeType);
+  env->DeleteLocalRef(oUri);
+  env->DeleteLocalRef(cIntent);
+
+  return oIntentPlay;
+}

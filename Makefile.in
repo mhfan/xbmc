@@ -127,6 +127,7 @@ DIRECTORY_ARCHIVES += xbmc/storage/osx/storage.a
 DIRECTORY_ARCHIVES += xbmc/windowing/osx/windowing_osx.a
 else
 ifeq (@USE_ANDROID@,1)
+DIRECTORY_ARCHIVES += xbmc/cores/AndroidPlayer/AndroidPlayer.a
 DIRECTORY_ARCHIVES += xbmc/input/linux/input_linux.a
 DIRECTORY_ARCHIVES += xbmc/network/linux/network_linux.a
 DIRECTORY_ARCHIVES += xbmc/powermanagement/android/powermanagement_android.a

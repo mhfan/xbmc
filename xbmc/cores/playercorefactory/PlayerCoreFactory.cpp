@@ -36,6 +36,10 @@
 #include "PlayerSelectionRule.h"
 #include "guilib/LocalizeStrings.h"
 
+#ifdef TARGET_ANDROID
+#include "android/activity/XBMCApp.h"
+#endif
+
 using namespace AUTOPTR;
 
 std::vector<CPlayerCoreConfig *> CPlayerCoreFactory::s_vecCoreConfigs;
@@ -291,6 +295,13 @@ bool CPlayerCoreFactory::LoadConfiguration(TiXmlElement* pConfig, bool clear)
     omxplayer->m_bPlaysAudio = true;
     omxplayer->m_bPlaysVideo = true;
     s_vecCoreConfigs.push_back(omxplayer);
+#endif
+
+#ifdef TARGET_ANDROID
+    CPlayerCoreConfig *androidplayer = new CPlayerCoreConfig("Android Player", EPC_ANDROIDPLAYER, NULL);
+    androidplayer->m_bPlaysAudio = CXBMCApp::CanPlay("", "audio");
+    androidplayer->m_bPlaysVideo = CXBMCApp::CanPlay("", "video");
+    s_vecCoreConfigs.push_back(androidplayer);
 #endif
 
     for(std::vector<CPlayerSelectionRule *>::iterator it = s_vecCoreSelectionRules.begin(); it != s_vecCoreSelectionRules.end(); it++)

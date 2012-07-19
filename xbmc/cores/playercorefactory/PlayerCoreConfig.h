@@ -30,6 +30,9 @@
 #if defined(HAS_OMXPLAYER)
 #include "cores/omxplayer/OMXPlayer.h"
 #endif
+#ifdef TARGET_ANDROID
+#include "cores/AndroidPlayer/AndroidPlayer.h"
+#endif
 #include "cores/ExternalPlayer/ExternalPlayer.h"
 #include "utils/log.h"
 
@@ -89,6 +92,9 @@ public:
 #else
       case EPC_DVDPLAYER: pPlayer = new CDVDPlayer(callback); break;
       case EPC_PAPLAYER: pPlayer = new PAPlayer(callback); break;
+#endif
+#ifdef TARGET_ANDROID
+      case EPC_ANDROIDPLAYER: pPlayer = new CAndroidPlayer(callback); break;
 #endif
       case EPC_EXTPLAYER: pPlayer = new CExternalPlayer(callback); break;
 #if defined(HAS_AMLPLAYER)

@@ -98,6 +98,9 @@ public:
   static bool GetStorageUsage(const std::string &path, std::string &usage);
   static int GetMaxSystemVolume();
 
+  static bool CanPlay(const std::string &path, const std::string &type = "video");
+  static bool Play(const std::string &path, const std::string &type = "video");
+
   static int GetDPI();
 protected:
   // limit who can access AttachCurrentThread/DetachCurrentThread
@@ -118,6 +121,8 @@ private:
   void releaseWakeLock();
   void run();
   void stop();
+
+  static jobject getPlayIntent(const std::string &path, const std::string &type);
 
   static ANativeActivity *m_activity;
   jobject m_wakeLock;
