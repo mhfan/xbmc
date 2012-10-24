@@ -2,22 +2,24 @@ include ../Makefile.include
 DEPS= ../Makefile.include Makefile
 
 # lib name, version
-LIBNAME=dbus
-VERSION=1.4.6
+LIBNAME=libdaemon
+VERSION=0.14
 SOURCE=$(LIBNAME)-$(VERSION)
 ARCHIVE=$(SOURCE).tar.gz
 
+BASE_URL=http://0pointer.de/lennart/projects/libdaemon
+
 # configuration settings
 CONFIGURE=cp -f $(CONFIG_SUB) $(CONFIG_GUESS) .; \
-          ./configure --prefix=$(PREFIX) --host=$(HOST) --disable-shared \
-	  --with-system-socket=/dev/socket/dbus --sysconfdir=/system/etc \
-          --without-x --disable-xml-docs --disable-doxygen-docs
+    ./configure --prefix=$(PREFIX) --host=$(HOST) \
+    --disable-assert --disable-largefile --disable-lynx --disable-examples \
+    --disable-shared  ac_cv_func_setpgrp_void=no \
 
-LIBDYLIB=$(PLATFORM)/$(LIBNAME)/.libs/libdbus-1.a
+LIBDYLIB=$(PLATFORM)/$(LIBNAME)/.libs/$(LIBNAME).a
 
 CLEAN_FILES=$(ARCHIVE) $(PLATFORM)
 
-all: .installed-$(PLATFORM)
+all: $(LIBDYLIB) .installed-$(PLATFORM)
 
 $(TARBALLS_LOCATION)/$(ARCHIVE):
 	$(RETRIEVE_TOOL) $(RETRIEVE_TOOL_FLAGS) $(BASE_URL)/$(ARCHIVE)
@@ -25,18 +27,13 @@ $(TARBALLS_LOCATION)/$(ARCHIVE):
 $(PLATFORM): $(TARBALLS_LOCATION)/$(ARCHIVE) $(DEPS)
 	rm -rf $(PLATFORM)/*; mkdir -p $(PLATFORM)
 	$(ARCHIVE_TOOL) $(ARCHIVE_TOOL_FLAGS) $(TARBALLS_LOCATION)/$(ARCHIVE)
-	cd $(PLATFORM); patch -p1 < ../android-upstream.patch
-	cd $(PLATFORM); patch -p1 < ../android.patch
-	cd $(PLATFORM); sed -i -e 's,\(configdir=\).*,\1/system/etc,' \
-		bus/Makefile.am dbus/Makefile.am
 	cd $(PLATFORM); $(CONFIGURE)
 
 $(LIBDYLIB): $(PLATFORM)
-	$(MAKE) -C $(PLATFORM)/dbus/
+	$(MAKE) -C $(PLATFORM)
 
 .installed-$(PLATFORM): $(LIBDYLIB)
-	$(MAKE) -C $(PLATFORM)/dbus install
-	$(MAKE) -C $(PLATFORM) install-am
+	$(MAKE) -C $(PLATFORM) install
 	touch $@
 
 clean:
@@ -45,4 +42,3 @@ clean:
 
 distclean::
 	rm -rf $(PLATFORM) .installed-$(PLATFORM)
-
