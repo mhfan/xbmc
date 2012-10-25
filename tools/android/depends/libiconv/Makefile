@@ -31,6 +31,10 @@ $(LIBDYLIB): $(PLATFORM)
 
 .installed-$(PLATFORM): $(LIBDYLIB)
 	$(MAKE) -C $(PLATFORM) install
+	#rm -f $(PREFIX)/lib/libiconv.la $(PREFIX)/lib/libiconv.so $(PREFIX)/lib/libiconv.so.2
+	#mv -f $(PREFIX)/lib/libiconv.so.2.5.0 $(PREFIX)/lib/libiconv.so
+	#$(RPL) -e "libiconv.so.2" "libiconv.so\x00\x00" $(PREFIX)/lib/libiconv.so
+	#-$(READELF) --dynamic $(PREFIX)/lib/libiconv.so | grep ibrary
 	touch $@
 
 clean:

@@ -13,7 +13,7 @@ export GIT_WORK_TREE=$(PLATFORM)
 
 # configuration settings
 
-LIBDYLIB=$(PLATFORM)/librtmp/librtmp.a
+LIBDYLIB=$(PLATFORM)/librtmp/librtmp.so
 
 CLEAN_FILES=$(ARCHIVE) $(PLATFORM)
 

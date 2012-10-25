@@ -766,6 +766,10 @@ elif test "$use_arch" = "arm"; then
   CFLAGS="$CFLAGS -mno-apcs-stack-check"
   CXXFLAGS="$CXXFLAGS -mno-apcs-stack-check"
   FFMPEG_EXTRACFLAGS=""
+#unset ANDROID_ROOT
+  if test "$ANDROID_ROOT" != ""; then
+  FFMPEG_EXTRACFLAGS="-I$ANDROID_ROOT/system/core/include -I$ANDROID_ROOT/frameworks/av/include -I$ANDROID_ROOT/frameworks/native/include -I$ANDROID_ROOT/hardware/libhardware/include"
+  fi
   if test "$use_tegra" = "yes"; then
     # Compile for ARMv7a architecture, need to test gcc for vfpv3-d16 support 
     SAVE_CFLAGS="$CFLAGS"
@@ -781,8 +785,13 @@ elif test "$use_arch" = "arm"; then
         use_cpu=cortex-a8])
   else
     if test "$use_neon" = "yes"; then 
-      CFLAGS="$CFLAGS -mfpu=neon -mvectorize-with-neon-quad"
-      CXXFLAGS="$CXXFLAGS -mfpu=neon -mvectorize-with-neon-quad"
+      ARM_OPTFLAGS="-mfloat-abi=softfp -mvectorize-with-neon-quad"
+      ARM_OPTFLAGS="$ARM_OPTFLAGS -march=armv7-a -mtune=cortex-a9"
+      #ARM_OPTFLAGS="$ARM_OPTFLAGS -fsingle-precision-constant -ftree-vectorize"
+      #ARM_OPTFLAGS="$ARM_OPTFLAGS -fpromote-loop-indices -funroll-loops"
+      #ARM_OPTFLAGS="$ARM_OPTFLAGS -mno-thumb-interwork"
+      CFLAGS="$CFLAGS $ARM_OPTFLAGS"
+      CXXFLAGS="$CXXFLAGS $ARM_OPTFLAGS"
       FFMPEG_EXTRACFLAGS="$FFMPEG_EXTRACFLAGS -mfpu=neon"
     fi
   fi
@@ -1812,11 +1821,11 @@ elif test "$target_platform" = "target_raspberry_pi"; then
 else
   if test "$use_gles" = "yes" && test "$use_openmax" = "auto"; then
     PKG_CHECK_MODULES([OPENMAX], [libomxil-bellagio],
-                      USE_OPENMAX=1;[INCLUDES="$INCLUDES $OPENMAX_CFLAGS"; LIBS="$LIBS $OPENMAX_LIBS"],
+                      USE_OPENMAX=1;[INCLUDES="$INCLUDES $OPENMAX_CFLAGS"; LIBS="$LIBS $OPENMAX_LIBS"];AC_DEFINE([HAVE_LIBOPENMAX],[1],["Define to 1 if libopenmax is installed"]),
                       use_openmax=no;USE_OPENMAX=0;AC_MSG_RESULT($openmax_not_found))
   elif test "$use_gles" = "yes" && test "$use_openmax" = "yes"; then
     PKG_CHECK_MODULES([OPENMAX], [libomxil-bellagio],
-                      USE_OPENMAX=1;[INCLUDES="$INCLUDES $OPENMAX_CFLAGS"; LIBS="$LIBS $OPENMAX_LIBS"],
+                      USE_OPENMAX=1;[INCLUDES="$INCLUDES $OPENMAX_CFLAGS"; LIBS="$LIBS $OPENMAX_LIBS"];AC_DEFINE([HAVE_LIBOPENMAX],[1],["Define to 1 if libopenmax is installed"]),
                       AC_MSG_ERROR($openmax_not_found))
   else
     AC_MSG_NOTICE($openmax_disabled)
@@ -2626,12 +2635,9 @@ XB_CONFIG_MODULE([lib/ffmpeg], [
       `if test "$use_neon" = "yes"; then echo --enable-neon; else echo --disable-neon; fi`\
       --target-os=$ffmpeg_target_os \
       --disable-muxers \
-      --enable-muxer=spdif \
-      --enable-muxer=adts \
       --disable-encoders \
-      --enable-encoder=ac3 \
-      --enable-encoder=aac \
       `if test "$use_ffmpeg_libvorbis" = "yes"; then echo --enable-libvorbis --enable-muxer=ogg --enable-encoder=libvorbis; else echo --disable-libvorbis; fi` \
+      `test "$use_arch" = "arm" && echo --disable-decoder=\"*float\"` \
       --disable-decoder=mpeg_xvmc \
       --disable-devices \
       --disable-ffprobe \
@@ -2643,6 +2649,11 @@ XB_CONFIG_MODULE([lib/ffmpeg], [
       --disable-doc \
       --enable-postproc \
       --enable-gpl \
+      --enable-version3 \
+      --enable-nonfree \
+      --disable-safe-bitstream-reader \
+      --disable-avdevice \
+      --disable-debug \
       `if test "x$use_vdpau" != "xno"; then echo --enable-vdpau; else echo --disable-vdpau; fi` \
       `if test "x$use_vaapi" != "xno"; then echo --enable-vaapi; else echo --disable-vaapi; fi` \
       `if test "$use_optimizations" != "no"; then echo --enable-optimizations; else echo --disable-optimizations; fi` \
@@ -2654,6 +2665,7 @@ XB_CONFIG_MODULE([lib/ffmpeg], [
       `if test "$target_platform" = "target_android"; then echo "--custom-libname-with-major=\\$(SLIBPREF)\\$(FULLNAME)-\\$(LIBMAJOR)-${ARCH}\\$(SLIBSUF)"; \
        else echo "--custom-libname-with-major=\\$(FULLNAME)-\\$(LIBMAJOR)-${ARCH}\\$(SLIBSUF)"; fi` \
       `case $host_cpu in i?86*) echo --disable-pic ;; *) echo --enable-pic ;; esac` \
+      ${ANDROID_ROOT:+--enable-libstagefright-h264 --cxx="$CXX" --ld="$CXX"} \
       --cc="$CC" &&
       sed -i -e "s#define HAVE_SYMVER 1#define HAVE_SYMVER 0#" config.h &&
       sed -i -e "s#define HAVE_SYMVER_GNU_ASM 1#define HAVE_SYMVER_GNU_ASM 0#" config.h

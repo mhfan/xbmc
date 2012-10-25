@@ -11,7 +11,7 @@ ARCHIVE=$(SOURCE).tar.gz
 CONFIGURE=cp -f $(CONFIG_SUB) $(CONFIG_GUESS) .auto/ ; \
           ./configure --prefix=$(PREFIX) --host=$(HOST) --disable-sdl
 
-LIBDYLIB=$(PLATFORM)/$(LIBNAME)/.libs/$(LIBNAME).a
+LIBDYLIB=$(PLATFORM)/$(LIBNAME)/.libs/$(LIBNAME).so
 
 CLEAN_FILES=$(ARCHIVE) $(PLATFORM)
 

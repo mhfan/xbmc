@@ -9,6 +9,7 @@ AC_ARG_VAR(XBMC_ANDROID_TARBALLS, path where tarballs will be saved)
 use_ndk=$XBMC_ANDROID_NDK
 use_sdk=$XBMC_ANDROID_SDK
 use_staging=$XBMC_ANDROID_STAGING
+use_android_source=$XBMC_ANDROID_SOURCE
 use_tarballs=$XBMC_ANDROID_TARBALLS
 
 AC_ARG_WITH([toolchain],
@@ -35,6 +36,11 @@ AC_ARG_WITH([staging],
   [AS_HELP_STRING([--with-staging],
   [optional. path for staging sysroot. defaults to $toolchain/staging])],
   [use_staging=$withval],[use_staging=$use_toolchain/staging])
+
+AC_ARG_WITH([android-source],
+  [AS_HELP_STRING([--with-android-source],
+  [optional. path for android source.])],
+  [use_android_source=$withval])
 
 AC_ARG_WITH([cpu],
   [AS_HELP_STRING([--with-cpu],
@@ -142,6 +148,7 @@ AC_SUBST(use_arch)
 AC_SUBST(use_host)
 AC_SUBST(use_cpu)
 AC_SUBST(use_staging)
+AC_SUBST(use_android_source)
 AC_SUBST(use_toolchain)
 AC_SUBST(use_tarballs)
 AC_SUBST(use_sdk_platform)

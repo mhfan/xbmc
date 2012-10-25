@@ -10,11 +10,12 @@ SOURCE=$(LIBNAME)-$(VERSION)
 ARCHIVE=$(SOURCE).tar.bz2
 
 # configuration settings
-CONFIGURE=OPT=-Os \
-  LIBS=-lm \
+CONFIGURE=OPT=-O2 LIBS=-lm \
   ./configure --prefix=$(PREFIX) --host=$(HOST) \
   --disable-toolbox-glue --disable-framework --with-system-ffi \
   ac_cv_func_gethostbyname_r=no ac_cv_header_sys_un_h=yes
+  #--without-doc-strings --without-pymalloc --without-tsc \
+  #--enable-unicode=ucs2 --disable-ipv6 \
 
 LIBDYLIB=$(PLATFORM)/libpython2.6.a
 

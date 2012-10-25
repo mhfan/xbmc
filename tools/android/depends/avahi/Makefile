@@ -46,6 +46,7 @@ CONFIGURE=cp -f $(CONFIG_SUB) $(CONFIG_GUESS) .; \
   --with-autoipd-user=default \
   --with-autoipd-group=default \
     \
+  ac_cv_lib_intl_ngettext=false
 
 LIBDYLIB=$(PLATFORM)/$(LIBNAME)/avahi-client/.libs/libavahi-client.a
 

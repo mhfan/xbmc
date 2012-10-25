@@ -1,6 +1,6 @@
 -include ../Makefile.include
 
-SOURCE=../../../../
+SOURCE=../../../..
 
 export PYTHON_VERSION=2.6
 export PYTHON_LDFLAGS=-L$(PREFIX)/lib -lpython$(PYTHON_VERSION) -lc -ldl -lm -lexpat -lffi -lintl
@@ -11,13 +11,14 @@ export USE_TEXTUREPACKER_NATIVE_ROOT=$(NATIVEPREFIX)
 export MYSQL_CONFIG=$(PREFIX)/bin/mysql_config
 export LIBS+=-lcrystax
 
-export CXXFLAGS+=-O3
-export CFLAGS+=-O3
+#export CXXFLAGS+=-O3
+#export CFLAGS+=-O3
 
 # configuration settings
 CONFIGURE=cp -f $(CONFIG_SUB) $(CONFIG_GUESS) build-aux/ ;\
+  ./build.sh --prefix=$(PREFIX) --host=$(HOST) #|| \
   ./configure --prefix=$(PREFIX) --host=$(HOST) \
-  --enable-neon --enable-gles --enable-debug \
+  --enable-neon --enable-gles --disable-debug \
   --disable-sdl --disable-x11 --disable-xrandr \
   --disable-optical-drive --disable-joystick \
   --enable-shared-lib --disable-alsa

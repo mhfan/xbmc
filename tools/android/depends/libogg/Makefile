@@ -11,7 +11,7 @@ ARCHIVE=$(SOURCE).tar.gz
 CONFIGURE=cp -f $(CONFIG_SUB) $(CONFIG_GUESS) .; \
           ./configure --prefix=$(PREFIX) --host=$(HOST)
 
-LIBDYLIB=$(PLATFORM)/src/.libs/$(LIBNAME).a
+LIBDYLIB=$(PLATFORM)/src/.libs/$(LIBNAME).so
 
 CLEAN_FILES=$(ARCHIVE) $(PLATFORM)
 

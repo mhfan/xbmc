@@ -527,6 +527,15 @@ lib/cmyth/Makefile
 /tools/Linux/xbmc.sh
 /tools/Linux/xbmc-standalone.sh
 
+# /tools/android
+/tools/android/staging
+/tools/android/tarballs
+/tools/android/android-ndk-*
+/tools/android/arm-linux-androideabi-*
+/tools/android/packaging/xbmc/res/drawable/splash.png
+/tools/android/packaging/xbmc/src/R.java
+/tools/android/xbmcremote
+
 # /tools/osx
 /tools/osx/XBMCHelper
 

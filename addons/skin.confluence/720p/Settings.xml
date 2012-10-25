@@ -127,12 +127,14 @@
 						<onclick>ActivateWindow(VideosSettings)</onclick>
 						<icon>-</icon>
 					</item>
+<!--
 					<item id="3">
 						<label>31502</label>
 						<label2>31409</label2>
 						<onclick>ActivateWindow(PVRSettings)</onclick>
 						<icon>special://skin/backgrounds/tv.jpg</icon>
 					</item>
+-->
 					<item id="4">
 						<label>2</label>
 						<label2>31402</label2>

@@ -483,22 +483,22 @@ ifeq (@USE_PVR_ADDONS@,1)
 	$(MAKE) -C pvr-addons install
 endif
 ifeq ($(findstring freebsd,@ARCH@), freebsd)
-	@find -E system addons -type f -not -iregex ".*svn.*" \
-		-iregex ".*@ARCH@.*|.*\.vis|.*\.xbs" \
+	@find -E system addons -type f -not -iregex ".*\.git.*|.*svn.*" \
+		-iregex ".*@ARCH@.*|.*\.vis|.*\.xbs|.*\.swp" \
 		-exec sh -c "install -d \"$(DESTDIR)$(libdir)/xbmc/\`dirname '{}'\`\"" \; \
 		-and \
 		-exec install "{}" $(DESTDIR)$(libdir)/xbmc/"{}" \; \
 		-exec printf " -- %-75.75s\r" "{}" \;
 else
 ifeq ($(findstring Darwin,$(shell uname -s)),Darwin)
-	@find -E system addons -type f -not -iregex ".*svn.*" \
-		-iregex ".*@ARCH@.*|.*\.vis|.*\.xbs" \
+	@find -E system addons -type f -not -iregex ".*\.git.*|.*svn.*" \
+		-iregex ".*@ARCH@.*|.*\.vis|.*\.xbs|.*\.swp" \
 		-exec sh -c "install -d \"$(DESTDIR)$(libdir)/xbmc/\`dirname '{}'\`\"" \; \
 		-and \
 		-exec install "{}" $(DESTDIR)$(libdir)/xbmc/"{}" \; \
 		-exec printf " -- %-75.75s\r" "{}" \;
 else
-	@find system addons -regextype posix-extended -type f -not -iregex ".*svn.*" -iregex ".*\.so|.*\.vis|.*\.xbs|.*\.pvr" -exec install -D "{}" $(DESTDIR)$(libdir)/xbmc/"{}" \; -printf " -- %-75.75f\r"
+	@find system addons -regextype posix-extended -type f -not -iregex ".*\.git.*|.*svn.*" -iregex ".*\.so|.*\.vis|.*\.xbs|.*\.pvr|.*\.swp" -exec install -D "{}" $(DESTDIR)$(libdir)/xbmc/"{}" \; -printf " -- %-75.75f\r"
 endif
 endif
 
@@ -523,7 +523,7 @@ install-datas: install-scripts
 	@# Arch independent files
 ifeq ($(findstring bsd,@ARCH@), bsd)
 	@find -E addons language media sounds userdata system -type f \
-		-not -iregex ".*@ARCH@.*|.*\.vis|.*\.xbs|.*svn.*|.*\.so|.*\.dll" \
+		-not -iregex ".*\.git.*|.*@ARCH@.*|.*\.vis|.*\.xbs|.*svn.*|.*\.so|.*\.dll" \
 		-exec sh -c "install -d \"$(DESTDIR)$(datarootdir)/xbmc/\`dirname '{}'\`\"" \; \
 		-and \
 		-exec install -m 0644 "{}" $(DESTDIR)$(datarootdir)/xbmc/"{}" \; \
@@ -531,13 +531,13 @@ ifeq ($(findstring bsd,@ARCH@), bsd)
 else
 ifeq ($(findstring Darwin,$(shell uname -s)),Darwin)
 	@find -E addons language media sounds userdata system -type f \
-		-not -iregex ".*@ARCH@.*|.*\.vis|.*\.xbs|.*svn.*|.*\.so|.*\.dll" \
+		-not -iregex ".*\.git.*|.*@ARCH@.*|.*\.vis|.*\.xbs|.*svn.*|.*\.so|.*\.dll" \
 		-exec sh -c "install -d \"$(DESTDIR)$(datarootdir)/xbmc/\`dirname '{}'\`\"" \; \
 		-and \
 		-exec install -m 0644 "{}" $(DESTDIR)$(datarootdir)/xbmc/"{}" \; \
 		-exec printf " -- %-75.75s\r" "{}" \;
 else
-	@find addons language media sounds userdata system -regextype posix-extended -type f -not -iregex ".*@ARCH@.*|.*\.vis|.*\.xbs|.*svn.*|.*\.so|.*\.dll|.*\.pvr" -exec install -D -m 0644 "{}" $(DESTDIR)$(datarootdir)/xbmc/"{}" \; -printf " -- %-75.75f\r"
+	@find addons language media sounds userdata system -regextype posix-extended -type f -not -iregex ".*\.git.*|.*@ARCH@.*|.*\.vis|.*\.xbs|.*svn.*|.*\.so|.*\.dll|.*\.pvr" -exec install -D -m 0644 "{}" $(DESTDIR)$(datarootdir)/xbmc/"{}" \; -printf " -- %-75.75f\r"
 endif
 endif
 	@# Icons and links

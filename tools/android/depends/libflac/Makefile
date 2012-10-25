@@ -11,7 +11,7 @@ export NASM=
 CONFIGURE=cp -f $(CONFIG_SUB) $(CONFIG_GUESS) .; \
           ./configure --prefix=$(PREFIX) --host=$(HOST) --disable-xmms-plugin --disable-cpplibs
 
-LIBDYLIB=$(PLATFORM)/src/libFLAC/.libs/libFLAC.a
+LIBDYLIB=$(PLATFORM)/src/libFLAC/.libs/libFLAC.so
 
 CLEAN_FILES=$(ARCHIVE) $(PLATFORM)
 

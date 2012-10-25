@@ -190,6 +190,10 @@ bool CDVDVideoCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options
       m_bSoftware = true;
       break;
     }
+#ifdef TARGET_ANDROID
+    if (1 && !m_bSoftware)	// XXX:
+      pCodec = m_dllAvCodec.avcodec_find_decoder_by_name("libstagefright_h264");
+#endif
   }
 
 #ifdef HAVE_LIBVDPAU

@@ -15,7 +15,7 @@ endif
 # configuration settings
 CONFIGURE=rm config.sub config.guess; $(AUTOMAKE) -ac; ./configure --prefix=$(PREFIX) --host=$(HOST)
 
-LIBDYLIB=$(PLATFORM)/.libs/$(LIBNAME).a
+LIBDYLIB=$(PLATFORM)/.libs/$(LIBNAME).so
 
 CLEAN_FILES=$(ARCHIVE) $(PLATFORM)
 

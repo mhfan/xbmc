@@ -7,7 +7,37 @@
     <player name="DVDPlayer" /> placeholder for MPlayer
     <player name="PAPlayer" audio="true" />
     -->
+
+    <player name="Gallery3d" type="ExternalPlayer" audio="false" video="true">
+      <filename>com.android.gallery3d</filename>
+      <hidexbmc>true</hidexbmc>
+    </player>
+    <player name="DICEPlayer" type="ExternalPlayer" audio="true" video="true">
+      <filename>com.inisoft.mediaplayer.a</filename>
+      <hidexbmc>true</hidexbmc>
+    </player>
+    <player name="VPlayer" type="ExternalPlayer" audio="true" video="true">
+      <filename>me.abitno.vplayer.t</filename>
+      <hidexbmc>true</hidexbmc>
+    </player>
+<!--
+    <player name="MXPlayer" type="ExternalPlayer" audio="true" video="true">
+      <filename>com.mxtech.videoplayer.pro</filename>
+      <filename>com.mxtech.videoplayer.ad</filename>
+      <hidexbmc>true</hidexbmc>
+    </player>
+-->
   </players>
+
+<!-- XXX:
+  <rules action="prepend" name="external player">
+    <rule video="true" internetstream="false" player="Android Player"/>
+
+    <rule video="true" player="DICEPlayer"/>
+    <rule video="true" player="Gallery3d"/>
+    <rule video="true" player="VPlayer"/>
+  </rules>
+-->
 
   <rules name="system rules">
     <rule name="rtv" protocols="rtv" player="DVDPlayer" />

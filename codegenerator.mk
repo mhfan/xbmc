@@ -11,6 +11,7 @@ ifeq ($(SWIG),)
 SWIG = swig-not-found
 endif
 
+GENDIR = $(INTERFACES_DIR)/python/generated
 DOXYGEN ?= $(shell which doxygen)
 ifeq ($(DOXYGEN),)
 DOXYGEN = doxygen-not-found
@@ -18,7 +19,6 @@ else
 DOXY_XML_PATH=$(GENDIR)/doxygenxml
 endif
 
-GENDIR = $(INTERFACES_DIR)/python/generated
 GROOVY_DIR = $(TOPDIR)/lib/groovy
 
 GENERATED =  $(GENDIR)/AddonModuleXbmc.cpp

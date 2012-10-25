@@ -12,7 +12,7 @@ export LIBS=-lm
 CONFIGURE=cp -f $(CONFIG_SUB) $(CONFIG_GUESS) .; \
           ./configure --prefix=$(PREFIX) --host=$(HOST) --disable-oggtest --disable-docs --disable-examples
 
-LIBDYLIB=$(PLATFORM)/lib/.libs/$(LIBNAME).a
+LIBDYLIB=$(PLATFORM)/lib/.libs/$(LIBNAME).so
 
 CLEAN_FILES=$(ARCHIVE) $(PLATFORM)
 

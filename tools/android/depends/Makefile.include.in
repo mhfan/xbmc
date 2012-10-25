@@ -2,6 +2,7 @@ TOOLCHAIN=@use_toolchain@
 NDKROOT=@use_ndk@
 SDKROOT=@use_sdk@
 XBMCPREFIX=@use_staging@
+ANDROID_ROOT=@use_android_source@
 TARBALLS_LOCATION=@use_tarballs@
 HOST=@use_host@
 PLATFORM=@use_cpu@
@@ -26,13 +27,37 @@ endif
 PREFIX=$(XBMCPREFIX)/$(PLATFORM)
 NATIVEPREFIX=$(XBMCPREFIX)/$(NATIVEPLATFORM)
 
-PLATFORM_FLAGS=-DANDROID -Os
+PLATFORM_FLAGS=-DANDROID -O2
 ifeq ($(PLATFORM),armeabi-v7a)
   PLATFORM_FLAGS+=-march=armv7-a -mtune=cortex-a9 -mfloat-abi=softfp -mfpu=neon -D__ARM_ARCH_7__ -D__ARM_ARCH_7A__
+
+  #PLATFORM_FLAGS+= -fsingle-precision-constant -ftree-vectorize
+  #PLATFORM_FLAGS+= -fpromote-loop-indices -funroll-loops
+  #PLATFORM_FLAGS+= -mno-thumb-interwork
 endif
 
 ifeq ($(PLATFORM),x86)
   PLATFORM_FLAGS+=-fomit-frame-pointer
+endif
+
+ifneq ($(ANDROID_ROOT),)
+  #PLATFORM_FLAGS += -I$(ANDROID_ROOT)/system/core/include
+  #PLATFORM_FLAGS += -I$(ANDROID_ROOT)/external/bluetooth/bluez/lib
+
+  PLATFORM_FLAGS += -DENHANCED_DOMX -DOMAP_ENHANCEMENT -DTARGET_OMAP4
+  PLATFORM_FLAGS += -I$(ANDROID_ROOT)/hardware/ti/domx/omx_core/inc
+
+  PLATFORM_FLAGS += -I$(ANDROID_ROOT)/external/openssl/include
+  PLATFORM_FLAGS += -I$(ANDROID_ROOT)/external/libxml2/include
+  PLATFORM_FLAGS += -I$(ANDROID_ROOT)/external/sqlite/dist
+  PLATFORM_FLAGS += -I$(ANDROID_ROOT)/external/lzo/include
+  PLATFORM_FLAGS += -I$(ANDROID_ROOT)/external/expat/lib
+  PLATFORM_FLAGS += -I$(ANDROID_ROOT)/external/libpng
+  PLATFORM_FLAGS += -I$(ANDROID_ROOT)/external/jpeg
+
+  PLATFORM_FLAGS += -L$(XBMCPREFIX)/system/lib  #-lft2
+  # XXX: need to remove/rename lib{stdc++,c,log}.so, libbluetooth.so
+  # and make symbolic links for lib{lzo2,png12,sqlite3}.so
 endif
 
 BASE_URL=http://mirrors.xbmc.org/build-deps/sources
@@ -70,6 +95,7 @@ ifneq ($(NATIVE_BUILD),1)
   export ACLOCAL_PATH=$(PREFIX)/share/aclocal:$(NATIVEPREFIX)/share/aclocal
   export LIBTOOLIZE=$(NATIVEPREFIX)/bin/libtoolize
   export AUTORECONF=$(NATIVEPREFIX)/bin/autoreconf
+  export ANDROID_ROOT
 else
   PLATFORM=$(NATIVEPLATFORM)
   PREFIX=$(NATIVEPREFIX)

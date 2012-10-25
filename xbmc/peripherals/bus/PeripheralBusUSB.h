@@ -34,7 +34,7 @@
 #elif defined(TARGET_DARWIN)
 #define HAVE_PERIPHERAL_BUS_USB 1
 #include "osx/PeripheralBusUSB.h"
-#elif defined(TARGET_ANDROID)
+#elif defined(TARGET_ANDROID) && defined(HAVE_LIBUSB)
 #define HAVE_PERIPHERAL_BUS_USB 1
 #include "linux/PeripheralBusUSBLibUSB.h"
 #endif
