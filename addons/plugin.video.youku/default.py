@@ -16,6 +16,7 @@ __addon__ = xbmcaddon.Addon(id=__addonid__)
 __addonicon__ = os.path.join( __addon__.getAddonInfo('path'), 'icon.png' )
 
 UserAgent = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3'
+#UserAgent = 'Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)'
 ORDER_LIST = [['1','历史最多播放'], ['6','本周最多播放'], ['7','今日最多播放'], ['3','最新上映'], ['9','最近上映'], ['5','最多评论'], ['11','用户好评']]
 ORDER_LIST2 = [['1','最新发布'], ['2','最多播放'], ['3','最热话题'], ['8','最具争议'], ['4','最多收藏'], ['5','最广传播'], ['6','用户推荐']]
 YEAR_LIST2 = [['1','今日'], ['2','本周'], ['3','本月'], ['4','历史']]
@@ -24,7 +25,7 @@ RES_LIST = ['normal', 'high', 'super']
 def GetHttpData(url):
     print "getHttpData: " + url
     req = urllib2.Request(url)
-    req.add_header('User-Agent', 'Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)')
+    req.add_header('User-Agent', UserAgent)
     try:
         response = urllib2.urlopen(req)
         httpdata = response.read()

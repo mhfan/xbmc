@@ -1,4 +1,0 @@
-<?xml version="1.0" encoding="utf8" standalone="yes"?>
-<settings>
-    <setting id="http_proxy" type="text" label="Proxy (ip:port) - leave blank if not required" values="" default=""/>
-</settings>
