@@ -169,6 +169,8 @@ bool COpenMaxVideo::Open(CDVDStreamInfo &hints)
     break;
   }
 
+  decoder_name = "OMX.TI.DUCATI1.VIDEO.DECODER";	// XXX:
+
   // initialize OpenMAX.
   if (!Initialize(decoder_name))
   {
@@ -306,11 +308,17 @@ int COpenMaxVideo::Decode(BYTE* pData, int iSize, double dts, double pts)
       pthread_mutex_unlock(&m_omx_input_mutex);
 
       // delete the previous demuxer buffer
+      if (1) {
+	  memcpy(omx_buffer->pBuffer, demux_packet.buff, demux_packet.size);
+	  delete demux_packet.buff;	demux_packet.buff = NULL;
+      } else {
       delete [] omx_buffer->pBuffer;
+      omx_buffer->pBuffer = demux_packet.buff;
+      }
+
       // setup a new omx_buffer.
       omx_buffer->nFlags  = m_omx_input_eos ? OMX_BUFFERFLAG_EOS : 0;
       omx_buffer->nOffset = 0;
-      omx_buffer->pBuffer = demux_packet.buff;
       omx_buffer->nAllocLen  = demux_packet.size;
       omx_buffer->nFilledLen = demux_packet.size;
       omx_buffer->nTimeStamp = (demux_packet.pts == DVD_NOPTS_VALUE) ? 0 : demux_packet.pts * 1000.0; // in microseconds;
@@ -545,6 +553,10 @@ OMX_ERRORTYPE COpenMaxVideo::AllocOMXInputBuffers(void)
   port_format.nPortIndex = m_omx_input_port;
   OMX_GetParameter(m_omx_decoder, OMX_IndexParamPortDefinition, &port_format);
 
+  if (1 && (omx_err = OMX_SendCommand(m_omx_decoder, OMX_CommandStateSet,
+	  OMX_StateIdle, 0)))	// XXX:
+    CLog::Log(LOGERROR, "%s::%s - setting OMX_StateIdle failed with omx_err(0x%x)\n", CLASSNAME, __func__, omx_err);
+
   #if defined(OMX_DEBUG_VERBOSE)
   CLog::Log(LOGDEBUG,
     "%s::%s - iport(%d), nBufferCountMin(%lu), nBufferSize(%lu)\n",
@@ -556,8 +568,10 @@ OMX_ERRORTYPE COpenMaxVideo::AllocOMXInputBuffers(void)
     // use an external buffer that's sized according to actual demux
     // packet size, start at internal's buffer size, will get deleted when
     // we start pulling demuxer packets and using demux packet sized buffers.
+    if (1) omx_err = OMX_AllocateBuffer(m_omx_decoder, &buffer, m_omx_input_port, NULL, port_format.nBufferSize); else {
     OMX_U8* data = new OMX_U8[port_format.nBufferSize];
     omx_err = OMX_UseBuffer(m_omx_decoder, &buffer, m_omx_input_port, NULL, port_format.nBufferSize, data);
+    }
     if (omx_err)
     {
       CLog::Log(LOGERROR, "%s::%s - OMX_UseBuffer failed with omx_err(0x%x)\n",
@@ -678,6 +692,7 @@ OMX_ERRORTYPE COpenMaxVideo::AllocOMXOutputEGLTextures(void)
     port_format.nBufferCountMin, port_format.nBufferSize);
   #endif
 
+ if (0)
   glActiveTexture(GL_TEXTURE0);
 
   for (size_t i = 0; i < port_format.nBufferCountMin; i++)
@@ -687,6 +702,7 @@ OMX_ERRORTYPE COpenMaxVideo::AllocOMXOutputEGLTextures(void)
     egl_buffer->width  = m_decoded_width;
     egl_buffer->height = m_decoded_height;
 
+    if (1) omx_err = OMX_AllocateBuffer(m_omx_decoder, &egl_buffer->omx_buffer, m_omx_output_port, NULL, port_format.nBufferSize); else {
     glGenTextures(1, &egl_buffer->texture_id);
     glBindTexture(GL_TEXTURE_2D, egl_buffer->texture_id);
 
@@ -716,7 +732,6 @@ OMX_ERRORTYPE COpenMaxVideo::AllocOMXOutputEGLTextures(void)
       CLog::Log(LOGERROR, "%s::%s - ERROR creating EglImage\n", CLASSNAME, __func__);
       return(OMX_ErrorUndefined);
     }
-    egl_buffer->index = i;
 
     // tell decoder output port that it will be using EGLImage
     omx_err = OMX_UseEGLImage(
@@ -727,6 +742,9 @@ OMX_ERRORTYPE COpenMaxVideo::AllocOMXOutputEGLTextures(void)
         CLASSNAME, __func__, omx_err);
       return(omx_err);
     }
+    }
+
+    egl_buffer->index = i;
     m_omx_output_buffers.push_back(egl_buffer);
 
     CLog::Log(LOGDEBUG, "%s::%s - Texture %p Width %d Height %d\n",
@@ -756,10 +774,12 @@ OMX_ERRORTYPE COpenMaxVideo::FreeOMXOutputEGLTextures(bool wait)
     egl_buffer = m_omx_output_buffers[i];
     // tell decoder output port to stop using the EGLImage
     omx_err = OMX_FreeBuffer(m_omx_decoder, m_omx_output_port, egl_buffer->omx_buffer);
+    if (egl_buffer->egl_image) {
     // destroy egl_image
     eglDestroyImageKHR(m_egl_display, egl_buffer->egl_image);
     // free texture
     glDeleteTextures(1, &egl_buffer->texture_id);
+    }
     delete egl_buffer;
   }
   m_omx_output_buffers.clear();
@@ -982,6 +1002,7 @@ OMX_ERRORTYPE COpenMaxVideo::StartDecoder(void)
   CLog::Log(LOGDEBUG, "%s::%s\n", CLASSNAME, __func__);
   #endif
 
+  if (1) omx_err =  WaitForState(OMX_StateIdle); else
   // transition decoder component to IDLE state
   omx_err = SetStateForComponent(OMX_StateIdle);
   if (omx_err)
