@@ -23,6 +23,7 @@
  */
 
 #include "XMemUtils.h"
+#include "utils/log.h"
 
 #if defined(TARGET_DARWIN)
 #include <mach/mach.h>
@@ -168,7 +169,10 @@ void GlobalMemoryStatusEx(LPMEMORYSTATUSEX lpBuffer)
         info.freehigh = val/4;
     }
     rewind(procMeminfoFP);
-    fflush(procMeminfoFP);
+    if (fflush(procMeminfoFP) < 0) {
+      fclose(procMeminfoFP);	procMeminfoFP = NULL;
+      //CLog::Log(LOGDEBUG, "fflush /proc/meminfo failed: %s\n", strerror(errno));
+    }
   }
   lpBuffer->dwLength        = sizeof(MEMORYSTATUSEX);
   lpBuffer->ullAvailPageFile = (info.freeswap * info.mem_unit);

@@ -626,7 +626,7 @@ bool CXBMCApp::GetIcon(const string &packageName, void* buffer, unsigned int buf
   JNIEnv *env = NULL;
   AttachCurrentThread(&env);
 
-  CLog::Log(LOGERROR, "CXBMCApp::GetIconSize Looking for: %s", packageName.c_str());
+  CLog::Log(LOGDEBUG, "CXBMCApp::GetIconSize Looking for: %s", packageName.c_str());
 
   jobject oActivity = m_activity->clazz;
   jclass cActivity = env->GetObjectClass(oActivity);

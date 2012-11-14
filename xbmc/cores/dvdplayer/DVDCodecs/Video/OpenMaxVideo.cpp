@@ -637,7 +637,7 @@ OMX_ERRORTYPE COpenMaxVideo::AllocOMXOutputBuffers(void)
     tMsg.dwMessage = TMSG_CALLBACK;
     tMsg.lpVoid = (void*)&callbackData;
 
-    g_application.getApplicationMessenger().SendMessage(tMsg, true);
+    CApplicationMessenger::Get().SendMessage(tMsg, true);
 
     omx_err = OMX_ErrorNone;
   }

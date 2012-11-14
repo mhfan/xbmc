@@ -22,6 +22,7 @@
 #include "utils/URIUtils.h"
 #include "Util.h"
 #include "URL.h"
+#include "network/Network.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/GUISettings.h"
 #include "settings/Settings.h"
@@ -43,6 +44,7 @@
 #include "SpecialProtocol.h"
 #include "utils/CharsetConverter.h"
 #include "utils/log.h"
+#include "Application.h"
 
 using namespace XFILE;
 using namespace XCURL;
@@ -934,6 +936,9 @@ bool CCurlFile::CReadState::ReadString(char *szLine, int iLineLength)
 
 bool CCurlFile::Exists(const CURL& url)
 {
+  if (!g_application.getNetwork().IsConnected())
+    return false;
+
   // if file is already running, get info from it
   if( m_opened )
   {

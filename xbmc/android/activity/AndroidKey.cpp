@@ -48,8 +48,13 @@ static KeyMap keyMap[] = {
   { AKEYCODE_DPAD_LEFT       , XBMCK_LEFT },
   { AKEYCODE_DPAD_RIGHT      , XBMCK_RIGHT },
   { AKEYCODE_DPAD_CENTER     , XBMCK_RETURN },
+#ifdef TARGET_ANDROID
+  { AKEYCODE_VOLUME_UP       , XBMCK_LAST },
+  { AKEYCODE_VOLUME_DOWN     , XBMCK_LAST },
+#else
   { AKEYCODE_VOLUME_UP       , XBMCK_PLUS },
   { AKEYCODE_VOLUME_DOWN     , XBMCK_MINUS },
+#endif
   { AKEYCODE_POWER           , XBMCK_POWER },
   { AKEYCODE_CAMERA          , XBMCK_LAST },
   { AKEYCODE_CLEAR           , XBMCK_LAST },
@@ -139,7 +144,9 @@ static KeyMap keyMap[] = {
 
 bool CAndroidKey::onKeyboardEvent(AInputEvent* event)
 {
+#ifdef _DEBUG
   CXBMCApp::android_printf("%s", __PRETTY_FUNCTION__);
+#endif
   if (event == NULL)
     return false;
 
@@ -229,6 +236,8 @@ void CAndroidKey::XBMC_Key(uint8_t code, uint16_t key, uint16_t modifiers, bool 
   newEvent.key.keysym.unicode = key;
   newEvent.key.keysym.mod = (XBMCMod)modifiers;
 
+#ifdef _DEBUG
   CXBMCApp::android_printf("XBMC_Key(%u, %u, 0x%04X, %d)", code, key, modifiers, up);
+#endif
   CWinEvents::MessagePush(&newEvent);
 }

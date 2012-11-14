@@ -29,6 +29,13 @@
 #include <semaphore.h>
 #include <OMX_Core.h>
 
+#ifndef OMX_VERSION_MAJOR
+#define OMX_VERSION_MAJOR	0x1
+#define OMX_VERSION_MINOR	0x1
+#define OMX_VERSION_REVISION	0x0
+#define OMX_VERSION_STEP	0x0
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////////////////
 // debug spew defines
 #if 0

@@ -124,6 +124,7 @@ bool CWinSystemEGL::InitWindowSystem()
   }
 
   m_extensions = m_egl->GetExtensions(m_display);
+  CLog::Log(LOGNOTICE, "EGL_EXTENSIONS = %s", m_extensions.c_str());
   return CWinSystemBase::InitWindowSystem();
 }
 
@@ -138,8 +139,9 @@ bool CWinSystemEGL::CreateWindow(RESOLUTION_INFO &res)
   if(m_egl)
     m_egl->SetNativeResolution(res);
 
-  if (!m_egl->CreateSurface(m_display, m_config, &m_surface))
+  if (1 || !m_egl->CreateSurface(m_display, m_config, &m_surface))
   {
+   if (0)
     CLog::Log(LOGNOTICE, "%s: Could not create a surface. Trying with a fresh Native Window.",__FUNCTION__);
     m_egl->DestroyNativeWindow();
     if (!m_egl->CreateNativeWindow())

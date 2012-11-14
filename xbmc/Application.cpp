@@ -745,7 +745,11 @@ bool CApplication::Create()
   }
 
   // restore AE's previous volume state
+#ifdef TARGET_ANDROID
+  SetHardwareVolume(VOLUME_MAXIMUM);
+#else
   SetHardwareVolume(g_settings.m_fVolumeLevel);
+#endif
   CAEFactory::SetMute     (g_settings.m_bMute);
   CAEFactory::SetSoundMode(g_guiSettings.GetInt("audiooutput.guisoundmode"));
 
@@ -3152,6 +3156,8 @@ bool CApplication::ProcessMouse()
   // the mouse position saved in the action.
   if (!mouseaction.IsMouse())
     return OnAction(mouseaction);
+
+  g_audioManager.PlayActionSound(mouseaction);
 
   // This is a mouse action so we need to record the mouse position
   return OnAction(CAction(mouseaction.GetID(),

@@ -279,6 +279,7 @@ void CGUIWindowManager::PreviousWindow()
       ClearWindowHistory();
       ActivateWindow(WINDOW_HOME);
     }
+    //else g_application.ExecuteXBMCAction("XBMC.Quit");	// XXX:
     return;
   }
   m_windowHistory.pop();

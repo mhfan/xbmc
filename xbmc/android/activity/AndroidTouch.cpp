@@ -36,7 +36,9 @@ CAndroidTouch::~CAndroidTouch()
 
 bool CAndroidTouch::onTouchEvent(AInputEvent* event)
 {
+#ifdef _DEBUG
   CXBMCApp::android_printf("%s", __PRETTY_FUNCTION__);
+#endif
   if (event == NULL)
     return false;
 
@@ -177,13 +179,17 @@ void CAndroidTouch::XBMC_Touch(uint8_t type, uint8_t button, uint16_t x, uint16_
   newEvent.button.x = x;
   newEvent.button.y = y;
   
+#ifdef _DEBUG
   CXBMCApp::android_printf("XBMC_Touch(%u, %u, %u, %u)", type, button, x, y);
+#endif
   CWinEvents::MessagePush(&newEvent);
 }
 
 void CAndroidTouch::XBMC_TouchGesture(int32_t action, float posX, float posY, float offsetX, float offsetY)
 {
+#ifdef _DEBUG
   CXBMCApp::android_printf("XBMC_TouchGesture(%d, %f, %f, %f, %f)", action, posX, posY, offsetX, offsetY);
+#endif
   if (action == ACTION_GESTURE_BEGIN)
     CApplicationMessenger::Get().SendAction(CAction(action, 0, posX, posY, 0, 0), WINDOW_INVALID, false);
   else if (action == ACTION_GESTURE_PAN)

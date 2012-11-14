@@ -337,6 +337,7 @@ void CGUISettings::Initialize()
   AddString(scr, "scrobbler.librefmusername", 15218, "", EDIT_CONTROL_INPUT, false, 15218);
   AddString(scr, "scrobbler.librefmpass", 15219, "", EDIT_CONTROL_MD5_INPUT, false, 15219);
 
+#ifdef HAS_FILESYSTEM_CDDA
   CSettingsCategory* acd = AddCategory(SETTINGS_MUSIC, "audiocds", 620);
   map<int,int> autocd;
   autocd.insert(make_pair(16018, AUTOCD_NONE));
@@ -369,6 +370,7 @@ void CGUISettings::Initialize()
   AddInt(acd, "audiocds.bitrate", 623, 192, 128, 32, 320, SPIN_CONTROL_INT_PLUS, MASK_KBPS);
   AddInt(acd, "audiocds.compressionlevel", 665, 5, 0, 1, 8, SPIN_CONTROL_INT_PLUS);
   AddBool(acd, "audiocds.ejectonrip", 14099, true);
+#endif
 
 #ifdef HAS_KARAOKE
   CSettingsCategory* kar = AddCategory(SETTINGS_MUSIC, "karaoke", 13327);
@@ -673,14 +675,13 @@ void CGUISettings::Initialize()
   if (g_sysinfo.IsVistaOrHigher())
     renderers.insert(make_pair(16319, RENDER_METHOD_DXVA));
   renderers.insert(make_pair(13431, RENDER_METHOD_D3D_PS));
-  renderers.insert(make_pair(13419, RENDER_METHOD_SOFTWARE));
 #endif
 
 #ifdef HAS_GL
   renderers.insert(make_pair(13417, RENDER_METHOD_ARB));
   renderers.insert(make_pair(13418, RENDER_METHOD_GLSL));
-  renderers.insert(make_pair(13419, RENDER_METHOD_SOFTWARE));
 #endif
+  renderers.insert(make_pair(13419, RENDER_METHOD_SOFTWARE));
   AddInt(vp, "videoplayer.rendermethod", 13415, RENDER_METHOD_AUTO, renderers, SPIN_CONTROL_TEXT);
 
 #ifdef HAVE_LIBVDPAU
@@ -808,10 +809,12 @@ void CGUISettings::Initialize()
   subtitleAlignments.insert(make_pair(21465, SUBTITLE_ALIGN_TOP_OUTSIDE));
   AddInt(sub, "subtitles.align", 21460, SUBTITLE_ALIGN_MANUAL, subtitleAlignments, SPIN_CONTROL_TEXT);
 
+#ifdef HAS_DVD_DRIVE
   CSettingsCategory* dvd = AddCategory(SETTINGS_VIDEOS, "dvds", 14087);
   AddBool(dvd, "dvds.autorun", 14088, false);
   AddInt(dvd, "dvds.playerregion", 21372, 0, 0, 1, 8, SPIN_CONTROL_INT_PLUS, -1, TEXT_OFF);
   AddBool(dvd, "dvds.automenu", 21882, false);
+#endif
 
   AddDefaultAddon(NULL, "scrapers.moviesdefault", 21413, "metadata.themoviedb.org", ADDON_SCRAPER_MOVIES);
   AddDefaultAddon(NULL, "scrapers.tvshowsdefault", 21414, "metadata.tvdb.com", ADDON_SCRAPER_TVSHOWS);
@@ -862,10 +865,12 @@ void CGUISettings::Initialize()
   AddString(srvAirplay, "services.airplaypassword", 733, "", EDIT_CONTROL_HIDDEN_INPUT, false, 733);
 #endif
 
+#if defined(HAVE_LIBSMBCLIENT)
 #ifndef _WIN32
   CSettingsCategory* srvSmb = AddCategory(SETTINGS_SERVICE, "smb", 1200);
   AddString(srvSmb, "smb.winsserver",  1207,   "",  EDIT_CONTROL_IP_INPUT);
   AddString(srvSmb, "smb.workgroup",   1202,   "WORKGROUP", EDIT_CONTROL_INPUT, false, 1202);
+#endif
 #endif
 
   // appearance settings

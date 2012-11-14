@@ -135,12 +135,21 @@ CGUIFont* GUIFontManager::LoadTTF(const CStdString& strFontName, const CStdStrin
     {
       delete pFontFile;
 
+      int i;
       // font could not be loaded - try Arial.ttf, which we distribute
-      if (strFilename != "arial.ttf")
+      if (strFilename != "arial.ttf" &&
+	  (i = strFilename.find_last_of('/')) != std::string::npos &&
+	  strFilename.substr(i + 1) != "arial.ttf")
       {
         CLog::Log(LOGERROR, "Couldn't load font name: %s(%s), trying to substitute arial.ttf", strFontName.c_str(), strFilename.c_str());
         return LoadTTF(strFontName, "arial.ttf", textColor, shadowColor, iSize, iStyle, border, lineSpacing, originalAspect);
       }
+
+#ifdef TARGET_ANDROID
+      CGUIFont* ttf = LoadTTF(strFontName, "/system/fonts/DroidSansFallback.ttf", textColor, shadowColor, iSize, iStyle, border, lineSpacing, originalAspect);
+      if (ttf) return ttf;
+#endif
+
       CLog::Log(LOGERROR, "Couldn't load font name:%s file:%s", strFontName.c_str(), strPath.c_str());
 
       return NULL;

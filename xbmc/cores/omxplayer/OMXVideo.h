@@ -24,7 +24,11 @@
 #include "OMXCore.h"
 #include "DVDStreamInfo.h"
 
+#ifdef HAVE_LIBOPENMAX
+#include <OMX_Video.h>
+#else// XXX:
 #include <IL/OMX_Video.h>
+#endif
 
 #include "OMXClock.h"
 

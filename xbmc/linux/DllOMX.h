@@ -32,12 +32,27 @@
 #include "DynamicDll.h"
 #include "utils/log.h"
 
+#ifdef HAVE_LIBOPENMAX
+#include <OMX_Core.h>
+#include <OMX_Component.h>
+#include <OMX_Index.h>
+#include <OMX_Image.h>
+#include <OMX_Video.h>
+#else// XXX:
 #include <IL/OMX_Core.h>
 #include <IL/OMX_Component.h>
 #include <IL/OMX_Index.h>
 #include <IL/OMX_Image.h>
 #include <IL/OMX_Video.h>
 #include <IL/OMX_Broadcom.h>
+#endif
+
+#ifndef OMX_VERSION_MAJOR
+#define OMX_VERSION_MAJOR	0x1
+#define OMX_VERSION_MINOR	0x1
+#define OMX_VERSION_REVISION	0x0
+#define OMX_VERSION_STEP	0x0
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -488,7 +488,10 @@ float CCPUInfo::getCPUFrequency()
   if (!m_fCPUInfo)
     return mhz;
   rewind(m_fCPUInfo);
-  fflush(m_fCPUInfo);
+  if (fflush(m_fCPUInfo) < 0) {
+    fclose(m_fCPUInfo);	m_fCPUInfo = fopen("/proc/cpuinfo", "r");
+    CLog::Log(LOGDEBUG, "fflush /proc/cpuinfo failed: %s\n", strerror(errno));
+  }
   while (fgets(buf, 256, m_fCPUInfo) != NULL) {
     if (strncmp(buf, "cpu MHz", 7) == 0) {
       needle = strchr(buf, ':');
@@ -529,7 +532,10 @@ bool CCPUInfo::getTemperature(CTemperature& temperature)
     // general enough interface to bother implementing ATM.
     
     rewind(m_fProcTemperature);
-    fflush(m_fProcTemperature);
+    if (fflush(m_fProcTemperature) < 0) {
+      CLog::Log(LOGDEBUG, "fflush /proc/TEMPERATURE failed: %s\n",
+	      strerror(errno));
+    }
     ret = fscanf(m_fProcTemperature, "temperature: %d %c", &value, &scale);
     
     // read from the temperature file of the new kernels
@@ -671,9 +677,6 @@ bool CCPUInfo::readProcStat(unsigned long long& user, unsigned long long& nice,
   if (m_fProcStat == NULL)
     return false;
 
-  rewind(m_fProcStat);
-  fflush(m_fProcStat);
-
   char buf[256];
   if (!fgets(buf, sizeof(buf), m_fProcStat))
     return false;
@@ -712,6 +715,13 @@ bool CCPUInfo::readProcStat(unsigned long long& user, unsigned long long& nice,
       iter->second.m_io += coreIO;
     }
   }
+
+  rewind(m_fProcStat);
+  if (fflush(m_fProcStat) < 0) {
+    fclose(m_fProcStat);	m_fProcStat = fopen("/proc/stat", "r");
+    CLog::Log(LOGDEBUG, "fflush /proc/stat failed: %s\n", strerror(errno));
+  }
+
 #endif
 
   return true;

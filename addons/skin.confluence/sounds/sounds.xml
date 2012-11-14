@@ -58,6 +58,10 @@
       <file>back.wav</file>
     </action>
     <action>
+      <name>leftclick</name>
+      <file>click.wav</file>
+    </action>
+    <action>
       <name>previousmenu</name>
       <file>back.wav</file>
     </action>
