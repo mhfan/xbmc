@@ -1,0 +1,44 @@
+﻿########################################################################
+# 乐视网(LeTv) by cmeng
+########################################################################
+# Version 1.2.4 2012-08-09
+# - add found zero item massage in letvSearchList()
+# - allow 10 trails to fetch video url
+# - allow 3 trails to fetch general url data
+
+# Version 1.2.3 2012-07-31
+# - correct script error in letvSearchList()
+
+# Version 2.1.2 2012-07-29 (cmeng)
+# - hard coded list items to speed up main menu display
+# - correct error in getList() routine
+# - correct url query string error in progListMovie()
+# - allows 3 trials when accessing url data
+# - take care of inconsistency in ppstream listpage fetch:'综艺'=>'娱乐'
+
+# Version 1.2.2 2012-07-14
+# - Update playVideoLeTV algorithm
+# - Need to use urllib.quote(keyword) in searchLeTV
+
+# Version 1.2.1 2012-07-06
+# - Add support for Proxy Setting
+
+# Version 1.2.0 2012-06-28
+# - Add Setting for user default video resolution selection
+# - Update HD/SD video link decode algorithm
+# - Refine special handling for '动漫' video listing
+# 
+# Version 1.1.0 2012-06-27
+# - Add in LeTV search function
+# - Refine video link decode algorithm
+# - Add in cookie handler
+# - Add in HTTP error handler
+#
+# Version 1.0.0 2012-06-24
+# - Add in 明星 category selection
+# - Update video link decode algorithm
+# - Correct update video list error
+#
+# Version 0.2.0 2012-06-23
+# - First Release 
+########################################################################
