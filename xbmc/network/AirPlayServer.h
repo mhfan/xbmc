@@ -29,12 +29,15 @@
 #include <sys/socket.h>
 #include "threads/Thread.h"
 #include "threads/CriticalSection.h"
+#include "filesystem/PipeFile.h"
 #include "utils/HttpParser.h"
 #include "utils/StdString.h"
 
 class DllLibPlist;
 
-#define AIRPLAY_SERVER_VERSION_STR "101.28"
+#define AIRPLAY_SERVER_FEATURE_STR "0x27b"	// XXX: 0x77, 0x2fb, 0x27fb
+#define AIRPLAY_SERVER_VERSION_STR "130.14"	// XXX: 101.28, 120.2, 130.14
+//#define ENABLE_SCREEN_MIRRORING 1
 
 class CAirPlayServer : public CThread
 {
@@ -73,6 +76,9 @@ private:
     struct sockaddr m_cliaddr;
     socklen_t m_addrlen;
     CCriticalSection m_critSection;
+#ifdef ENABLE_SCREEN_MIRRORING
+    bool m_bStreamSocket;
+#endif
 
   private:
     int ProcessRequest( CStdString& responseHeader,
@@ -95,6 +101,10 @@ private:
 
   std::vector<CTCPClient> m_connections;
   std::map<CStdString, int> m_reverseSockets;
+#ifdef ENABLE_SCREEN_MIRRORING
+  XFILE::CPipeFile *m_pipe;
+  int m_ScreenSocket;
+#endif
   int m_ServerSocket;
   int m_port;
   bool m_nonlocal;

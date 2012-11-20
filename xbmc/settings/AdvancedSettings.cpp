@@ -314,8 +314,8 @@ void CAdvancedSettings::Initialize()
   m_guiAlgorithmDirtyRegions = 3;
   m_guiDirtyRegionNoFlipTimeout = 0;
   m_logEnableAirtunes = false;
-  m_airTunesPort = 36666;
-  m_airPlayPort = 36667;
+  m_airTunesPort = 36666;   // XXX: 49152
+  m_airPlayPort = 36667;    // XXX: 7000
   m_initialized = true;
 
   m_databaseMusic.Reset();

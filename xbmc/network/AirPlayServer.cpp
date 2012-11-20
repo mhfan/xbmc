@@ -62,6 +62,29 @@ int CAirPlayServer::m_isPlaying = 0;
 #define EVENT_STOPPED   3
 const char *eventStrings[] = {"playing", "paused", "loading", "stopped"};
 
+#define PLAYBACK_ACCESS_LOG \
+"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n" \
+"<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" " \
+	"\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\r\n" \
+"<plist version=\"1.0\">\r\n" \
+" <dict>\r\n" \
+"  <key>errorCode</key>\r\n" \
+"  <integer>0</integer>\r\n" \
+"  <key>value</key>\r\n" \
+"  <array>\r\n" \
+"   <dict>\r\n" \
+"    <key>c-duration-downloaded</key> <real>%g</real>\r\n" \
+"    <key>c-duration-watched</key> <real>%g</real>\r\n" \
+"    <key>c-frames-dropped</key> <integer>0</integer>\r\n" \
+"    <key>c-overdue</key> <integer>0</integer>\r\n" \
+"    <key>c-stalls</key> <integer>0</integer>\r\n" \
+"    <key>c-start-time</key> <real>0.0</real>\r\n" \
+"    <key>c-startup-time</key> <real>0.2</real>\r\n" \
+"   </dict>\r\n" \
+"  </array>\r\n" \
+" </dict>\r\n" \
+"</plist>\r\n" \
+
 #define PLAYBACK_INFO  "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"\
 "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\r\n"\
 "<plist version=\"1.0\">\r\n"\
@@ -117,7 +140,7 @@ const char *eventStrings[] = {"playing", "paused", "loading", "stopped"};
 "<key>deviceid</key>\r\n"\
 "<string>%s</string>\r\n"\
 "<key>features</key>\r\n"\
-"<integer>119</integer>\r\n"\
+"<integer>"AIRPLAY_SERVER_FEATURE_STR"</integer>\r\n"\
 "<key>model</key>\r\n"\
 "<string>AppleTV2,1</string>\r\n"\
 "<key>protovers</key>\r\n"\
@@ -137,6 +160,25 @@ const char *eventStrings[] = {"playing", "paused", "loading", "stopped"};
 "<string>%s</string>\r\n"\
 "</dict>\r\n"\
 "</plist>\r\n"\
+
+#define MIRRORING_INFO \
+"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n" \
+"<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" " \
+	"\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\r\n" \
+"<plist version=\"1.0\">\r\n" \
+" <dict>\r\n" \
+"  <key>width</key>\r\n" \
+"  <integer>%d</integer>\r\n" \
+"  <key>height</key>\r\n" \
+"  <integer>%d</integer>\r\n" \
+"  <key>overscanned</key>\r\n" \
+"  <true/>\r\n" \
+"  <key>refreshRate</key>\r\n" \
+"  <real>0.016666666666666666</real>\r\n" \
+"  <key>version</key>\r\n" \
+"  <string>"AIRPLAY_SERVER_VERSION_STR"</string>\r\n" \
+" </dict>\r\n" \
+"</plist>\r\n" \
 
 #define AUTH_REALM "AirPlay"
 #define AUTH_REQUIRED "WWW-Authenticate: Digest realm=\""  AUTH_REALM  "\", nonce=\"%s\"\r\n"
@@ -191,6 +233,10 @@ CAirPlayServer::CAirPlayServer(int port, bool nonlocal) : CThread("AirPlayServer
   m_port = port;
   m_nonlocal = nonlocal;
   m_ServerSocket = INVALID_SOCKET;
+#ifdef ENABLE_SCREEN_MIRRORING
+  m_ScreenSocket = INVALID_SOCKET;
+  m_pipe = NULL;
+#endif
   m_usePassword = false;
 }
 
@@ -207,6 +253,11 @@ void CAirPlayServer::Process()
 
     FD_SET(m_ServerSocket, &rfds);
     max_fd = m_ServerSocket;
+
+#ifdef ENABLE_SCREEN_MIRRORING
+    FD_SET(m_ScreenSocket, &rfds);
+    if (max_fd < m_ScreenSocket) max_fd = m_ScreenSocket;
+#endif
 
     for (unsigned int i = 0; i < m_connections.size(); i++)
     {
@@ -235,16 +286,83 @@ void CAirPlayServer::Process()
           if (nread > 0)
           {
             CStdString sessionId;
+#ifdef ENABLE_SCREEN_MIRRORING
+	    if (m_connections[i].m_bStreamSocket) {
+	      struct StreamPacket {
+		uint32_t payload_size;
+		uint16_t payload_type;
+		unsigned char xx[2];
+		unsigned char ntp_ts[8];
+
+		unsigned char reserved[112];
+		unsigned char payload[];
+	      } *sp = (struct StreamPacket*)buffer;
+
+	      switch (sp->payload_type) {
+	      case 2:	// heartbeat
+		break;
+
+	      case 1: {	// codec data
+		if (m_pipe) {
+		  CLog::Log(LOGWARNING, "close last screen stream pipe");
+		  m_pipe->SetEof();	m_pipe->Close();
+		  delete m_pipe;	m_pipe = NULL;
+		}
+
+		m_pipe = new XFILE::CPipeFile;
+
+		m_pipe->OpenForWrite(XFILE::PipesManager::GetInstance().
+			GetUniquePipeName());
+		m_pipe->SetOpenThreashold(4096);	// XXX:
+
+		CFileItem item;
+		item.SetPath(m_pipe->GetName());
+		item.SetMimeType("video/avc");
+
+		m_pipe->Write(sp->payload, sp->payload_size);
+
+		CApplicationMessenger::Get().PlayFile(item);
+		//CApplicationMessenger::Get().MediaPlay(item);	// XXX:
+	      } break;
+
+	      case 0:	// video bitstream
+		m_pipe->Write(sp->payload, sp->payload_size);
+		break;
+	      }
+	    } else
+#endif
             m_connections[i].PushBuffer(this, buffer, nread, sessionId, m_reverseSockets);
           }
           if (nread <= 0)
           {
             CLog::Log(LOGINFO, "AIRPLAY Server: Disconnection detected");
+#ifdef ENABLE_SCREEN_MIRRORING
+	    if (m_connections[i].m_bStreamSocket && m_pipe) {
+	      m_pipe->SetEof();	m_pipe->Close();
+	      delete m_pipe;	m_pipe = NULL;
+	    }
+#endif
             m_connections[i].Disconnect();
             m_connections.erase(m_connections.begin() + i);
           }
         }
       }
+
+#ifdef ENABLE_SCREEN_MIRRORING
+      if (FD_ISSET(m_ScreenSocket, &rfds)) {
+        CTCPClient newconnection;
+        CLog::Log(LOGDEBUG, "AIRPLAY Server: screen connection detected");
+        newconnection.m_socket = accept(m_ScreenSocket,
+		&newconnection.m_cliaddr, &newconnection.m_addrlen);
+
+        if (newconnection.m_socket == INVALID_SOCKET)
+          CLog::Log(LOGERROR, "AIRPLAY Server: "
+		  "Accept of screen connection failed"); else {
+          CLog::Log(LOGINFO, "AIRPLAY Server: screen connection added");
+          m_connections.push_back(newconnection);
+        }
+      }
+#endif
 
       if (FD_ISSET(m_ServerSocket, &rfds))
       {
@@ -298,6 +416,9 @@ bool CAirPlayServer::Initialize()
     return false;
   }
 
+  int on = 1;
+  setsockopt(m_ServerSocket, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+
   if (bind(m_ServerSocket, (struct sockaddr*)&myaddr, sizeof myaddr) < 0)
   {
     CLog::Log(LOGERROR, "AIRPLAY Server: Failed to bind serversocket");
@@ -311,6 +432,16 @@ bool CAirPlayServer::Initialize()
     close(m_ServerSocket);
     return false;
   }
+
+#ifdef ENABLE_SCREEN_MIRRORING
+  myaddr.sin_port = htons(7100);	// XXX:
+  if ((m_ScreenSocket = socket(PF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET ||
+	setsockopt(m_ScreenSocket, SOL_SOCKET, SO_REUSEADDR,
+	    &on, sizeof(on)) < 0 ||
+	bind(m_ScreenSocket, (struct sockaddr*)&myaddr, sizeof myaddr) < 0 ||
+	listen(m_ScreenSocket, 10) < 0)
+    CLog::Log(LOGERROR, "AIRPLAY Server: Failed to create screensocket");
+#endif
 
   CLog::Log(LOGINFO, "AIRPLAY Server: Successfully initialized");
   return true;
@@ -330,6 +461,18 @@ void CAirPlayServer::Deinitialize()
     close(m_ServerSocket);
     m_ServerSocket = INVALID_SOCKET;
   }
+
+#ifdef ENABLE_SCREEN_MIRRORING
+  if (m_ScreenSocket != INVALID_SOCKET) {
+    shutdown(m_ScreenSocket, SHUT_RDWR);
+    close(m_ScreenSocket);
+    m_ScreenSocket = INVALID_SOCKET;
+    if (m_pipe) {
+      m_pipe->SetEof();	m_pipe->Close();
+      delete m_pipe;	m_pipe = NULL;
+    }
+  }
+#endif
 }
 
 CAirPlayServer::CTCPClient::CTCPClient()
@@ -340,6 +483,9 @@ CAirPlayServer::CTCPClient::CTCPClient()
   m_addrlen = sizeof(struct sockaddr);
   m_pLibPlist = new DllLibPlist();
 
+#ifdef ENABLE_SCREEN_MIRRORING
+  m_bStreamSocket = false;
+#endif
   m_bAuthenticated = false;
   m_lastEvent = EVENT_NONE;
 }
@@ -456,10 +602,23 @@ void CAirPlayServer::CTCPClient::PushBuffer(CAirPlayServer *host, const char *bu
       send(reverseSocket, response.c_str(), response.size(), 0);//send the event status on the eventSocket
     }
 
+    // XXX: http://nto.github.com/AirPlay.html
+    if (status == AIRPLAY_STATUS_METHOD_NOT_ALLOWED ||
+	status == AIRPLAY_STATUS_NOT_IMPLEMENTED ||
+	status == AIRPLAY_STATUS_NOT_FOUND)
+      CLog::Log(LOGWARNING, "AIRPLAY Server: sockets: %d, "
+	    "requests:\n%s", m_socket, buffer);
+
+    if (0) CLog::Log(LOGDEBUG, "AIRPLAY Server: reverse-socket: %d, "
+	    "response:\n%s", reverseSocket, response.c_str());
+
     // We need a new parser...
     delete m_httpParser;
     m_httpParser = new HttpParser;
   }
+
+  else if (0) CLog::Log(LOGERROR, "AIRPLAY Server: sockets: %d, "
+	    "requests:\n%s", m_socket, buffer);
 }
 
 void CAirPlayServer::CTCPClient::Disconnect()
@@ -472,6 +631,9 @@ void CAirPlayServer::CTCPClient::Disconnect()
     m_socket = INVALID_SOCKET;
     delete m_httpParser;
     m_httpParser = NULL;
+#ifdef ENABLE_SCREEN_MIRRORING
+    m_bStreamSocket = false;
+#endif
   }
 }
 
@@ -483,6 +645,9 @@ void CAirPlayServer::CTCPClient::Copy(const CTCPClient& client)
   m_httpParser        = client.m_httpParser;
   m_authNonce         = client.m_authNonce;
   m_bAuthenticated    = client.m_bAuthenticated;
+#ifdef ENABLE_SCREEN_MIRRORING
+  m_bStreamSocket     = client.m_bStreamSocket;
+#endif
 }
 
 
@@ -656,6 +821,8 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
     uri = uri.Left(startQs);
   }
 
+  CLog::Log(LOGDEBUG, "AIRPLAY: got request %s", uri.c_str());
+
   // This is the socket which will be used for reverse HTTP
   // negotiate reverse HTTP via upgrade
   if (uri == "/reverse")
@@ -673,7 +840,7 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
       const char* found = strstr(queryString.c_str(), "value=");
       int rate = found ? (int)(atof(found + strlen("value=")) + 0.5f) : 0;
 
-      CLog::Log(LOGDEBUG, "AIRPLAY: got request %s with rate %i", uri.c_str(), rate);
+      CLog::Log(LOGDEBUG, "AIRPLAY: set rate %i", rate);
 
       if (needAuth && !checkAuthorization(authorization, method, uri))
       {
@@ -706,7 +873,7 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
       const char* found = strstr(queryString.c_str(), "volume=");
       float volume = found ? (float)strtod(found + strlen("volume="), NULL) : 0;
 
-      CLog::Log(LOGDEBUG, "AIRPLAY: got request %s with volume %f", uri.c_str(), volume);
+      CLog::Log(LOGDEBUG, "AIRPLAY: set volume %f", volume);
 
       if (needAuth && !checkAuthorization(authorization, method, uri))
       {
@@ -732,8 +899,6 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
     CStdString location;
     float position = 0.0;
     m_lastEvent = EVENT_NONE;
-
-    CLog::Log(LOGDEBUG, "AIRPLAY: got request %s", uri.c_str());
 
     if (needAuth && !checkAuthorization(authorization, method, uri))
     {
@@ -808,6 +973,18 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
       }
     }
 
+    int start = location.find(':');
+    if (start != std::string::npos &&
+	    location.substr(start += 3, 9) == "127.0.0.1") {
+	struct sockaddr_in *sa = (struct sockaddr_in*)&m_cliaddr;
+	char buf[16];
+
+	if (inet_ntop(AF_INET, &sa->sin_addr.s_addr, buf, 16)) {
+	    CLog::Log(LOGWARNING, "replace 127.0.0.1 to %s in location", buf);
+	    location.replace(start, 9, buf);
+	}
+    }
+
     if (status != AIRPLAY_STATUS_NEED_AUTH)
     {
       CStdString userAgent="AppleCoreMedia/1.0.0.8F455 (AppleTV; U; CPU OS 4_3 like Mac OS X; de_de)";
@@ -831,8 +1008,6 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
     }
     else if (method == "GET")
     {
-      CLog::Log(LOGDEBUG, "AIRPLAY: got GET request %s", uri.c_str());
-      
       if (g_application.m_pPlayer && g_application.m_pPlayer->GetTotalTime())
       {
         float position = ((float) g_application.m_pPlayer->GetTime()) / 1000;
@@ -851,7 +1026,7 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
       {
         int64_t position = (int64_t) (atof(found + strlen("position=")) * 1000.0);
         g_application.m_pPlayer->SeekTime(position);
-        CLog::Log(LOGDEBUG, "AIRPLAY: got POST request %s with pos %"PRId64, uri.c_str(), position);
+        CLog::Log(LOGDEBUG, "AIRPLAY: set pos %"PRId64, position);
       }
     }
   }
@@ -859,7 +1034,6 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
   // Sent when media playback should be stopped
   else if (uri == "/stop")
   {
-    CLog::Log(LOGDEBUG, "AIRPLAY: got request %s", uri.c_str());
     if (needAuth && !checkAuthorization(authorization, method, uri))
     {
       status = AIRPLAY_STATUS_NEED_AUTH;
@@ -882,7 +1056,6 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
   // RAW JPEG data is contained in the request body
   else if (uri == "/photo")
   {
-    CLog::Log(LOGDEBUG, "AIRPLAY: got request %s", uri.c_str());
     if (needAuth && !checkAuthorization(authorization, method, uri))
     {
       status = AIRPLAY_STATUS_NEED_AUTH;
@@ -925,8 +1098,6 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
     float cachePosition = 0.0f;
     bool playing = false;
 
-    CLog::Log(LOGDEBUG, "AIRPLAY: got request %s", uri.c_str());
-
     if (needAuth && !checkAuthorization(authorization, method, uri))
     {
       status = AIRPLAY_STATUS_NEED_AUTH;
@@ -967,7 +1138,6 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
 
   else if (uri == "/server-info")
   {
-    CLog::Log(LOGDEBUG, "AIRPLAY: got request %s", uri.c_str());
     responseBody.Format(SERVER_INFO, g_application.getNetwork().GetFirstConnectedInterface()->GetMacAddress());
     responseHeader = "Content-Type: text/x-apple-plist+xml\r\n";
   }
@@ -982,13 +1152,65 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
     // DRM, ignore for now.
   }
   
+#ifdef ENABLE_SCREEN_MIRRORING
+  else if (uri == "/stream.xml") {
+    const RESOLUTION_INFO &info = g_graphicsContext.GetResInfo();
+    responseBody.Format(MIRRORING_INFO, info.iScreenWidth, info.iScreenHeight);
+    responseHeader = "Content-Type: text/x-apple-plist+xml\r\n";
+  }
+
+  else if (uri == "/stream" && method == "POST") {
+    if (m_pLibPlist->Load()) {
+      plist_t dict = NULL;
+      m_pLibPlist->EnableDelayedUnload(false);
+      const char* bodyChr = m_httpParser->getBody();
+
+      m_pLibPlist->plist_from_bin(bodyChr, m_httpParser->getContentLength(),
+	      &dict);
+
+      if (m_pLibPlist->plist_dict_get_size(dict)) {
+        plist_t tmpNode = m_pLibPlist->plist_dict_get_item(dict, "sessionID");
+        if (tmpNode) {	uint64_t val;
+          m_pLibPlist->plist_get_uint_val(tmpNode, &val);
+	  if (sessionId.empty()) sessionId.Format("%x", val);
+        }
+
+        m_pLibPlist->plist_free(dict);
+      } else CLog::Log(LOGERROR, "Error parsing plist");
+      m_pLibPlist->Unload();
+    }
+
+    m_bStreamSocket = true;
+    CAirPlayServer::m_isPlaying++;
+    CLog::Log(LOGDEBUG, "AIRPLAY Server: got new screen video stream");
+  }
+
+  else if (uri == "/fp-setup") {
+    status = AIRPLAY_STATUS_NOT_FOUND;
+  }
+#endif
+
   else if (uri == "/setProperty")
   {
-    status = AIRPLAY_STATUS_NOT_FOUND;
+    status = AIRPLAY_STATUS_NOT_FOUND;	// XXX:
   }
 
   else if (uri == "/getProperty")
   {
+    if (needAuth && !checkAuthorization(authorization, method, uri))
+      status = AIRPLAY_STATUS_NEED_AUTH; else if (0) {	// XXX:
+      float watched = 0.05f, cached = 0.1f;
+      if (g_application.m_pPlayer &&
+	      g_application.m_pPlayer->GetTotalTime()) {
+	watched = (float)g_application.m_pPlayer->GetTime() * 100 /
+			 g_application.m_pPlayer->GetTotalTime();
+	cached  = g_application.m_pPlayer->GetCachePercentage();
+      }
+
+      responseBody.Format(PLAYBACK_ACCESS_LOG, cached, watched);
+      responseHeader = "Content-Type: text/x-apple-plist+xml\r\n";
+    } else
+
     status = AIRPLAY_STATUS_NOT_FOUND;
   }  
 

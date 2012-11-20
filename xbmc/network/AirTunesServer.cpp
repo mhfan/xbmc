@@ -505,21 +505,27 @@ bool CAirTunesServer::StartServer(int port, bool nonlocal, bool usePassword, con
     appName.Format("%s@%s", m_macAddress.c_str(), g_infoManager.GetLabel(SYSTEM_FRIENDLY_NAME).c_str());
 
     std::map<std::string, std::string> txt;
-    txt["cn"] = "0,1";
+    txt["cn"] = "0,1";		// XXX: "0,1,2,3" (AAC-ELD, Enhanced Low Delay)
     txt["ch"] = "2";
-    txt["ek"] = "1";
+    txt["ek"] = "1";		// XXX:
     txt["et"] = "0,1";
-    txt["sv"] = "false";
+    txt["sv"] = "false";	// XXX:
     txt["tp"] = "UDP";
     txt["sm"] = "false";
     txt["ss"] = "16";
     txt["sr"] = "44100";
     txt["pw"] = "false";
-    txt["vn"] = "3";
-    txt["da"] = "true";
+    txt["vn"] = "3";		// XXX:
+    txt["da"] = "true";		// XXX:
+#ifdef HAS_AIRPLAY
+    txt["vs"] = AIRPLAY_SERVER_VERSION_STR;
+#else
     txt["vs"] = "130.14";
+#endif
     txt["md"] = "0,1,2";
     txt["txtvers"] = "1";
+    txt["am"] = "AppleTV2,1";
+    //txt["sf"] = "0x4";	// XXX:
 
     CZeroconf::GetInstance()->PublishService("servers.airtunes", "_raop._tcp", appName, port, txt);
   }
