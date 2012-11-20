@@ -1365,6 +1365,17 @@ const CStdString& CFileItem::GetMimeType(bool lookup /*= true*/) const
           || m_strPath.Left(7).Equals("http://")
           || m_strPath.Left(8).Equals("https://"))
     {
+      CStdString strExt;
+      URIUtils::GetExtension(m_strPath.substr(0,
+	    m_strPath.find_first_of('|')), strExt);
+      strExt.ToLower();
+
+      if (strExt == ".m3u8") m_ref = "application/vnd.apple.mpegURL"; else
+      if (strExt == ".mov")  m_ref = "video/quicktime"; else
+      if (strExt == ".mp4")  m_ref = "video/mp4v-es"; else
+      if (m_strPath.find("mp4") != std::string::npos)
+	m_ref = "video/mp4"; else if (0) {	// XXX:
+
       CCurlFile::GetMimeType(GetAsUrl(), m_ref);
 
       // try to get mime-type again but with an NSPlayer User-Agent
@@ -1379,6 +1390,7 @@ const CStdString& CFileItem::GetMimeType(bool lookup /*= true*/) const
       if(i>=0)
         m_ref.Delete(i,m_ref.length()-i);
       m_ref.Trim();
+     }
     }
     else
       m_ref = CMime::GetMimeType(*this);

@@ -46,6 +46,7 @@
 #include "threads/Thread.h"
 #include "threads/SystemClock.h"
 #include "utils/TimeUtils.h"
+#include "URL.h"
 
 void CDemuxStreamAudioFFmpeg::GetStreamInfo(std::string& strInfo)
 {
@@ -113,7 +114,9 @@ void ff_avutil_log(void* ptr, int level, const char* format, va_list va)
   {
     case AV_LOG_INFO   : type = LOGINFO;    break;
     case AV_LOG_ERROR  : type = LOGERROR;   break;
-    case AV_LOG_DEBUG  :
+    case AV_LOG_FATAL  : type = LOGFATAL;   break;
+    case AV_LOG_WARNING: type = LOGWARNING; break;
+    //case AV_LOG_DEBUG  : case AV_LOG_VERBOSE:
     default            : type = LOGDEBUG;   break;
   }
 
@@ -273,8 +276,11 @@ bool CDVDDemuxFFmpeg::Open(CDVDInputStream* pInput)
   // try to abort after 30 seconds
   m_timeout.Set(30000);
 
+  m_pFormatContext = m_dllAvFormat.avformat_alloc_context();
+
   if( m_pInput->IsStreamType(DVDSTREAM_TYPE_FFMPEG) )
   {
+    AVDictionary* lavf_opts = NULL;
     // special stream type that makes avformat handle file opening
     // allows internal ffmpeg protocols to be used
     int result=-1;
@@ -290,7 +296,25 @@ bool CDVDDemuxFFmpeg::Open(CDVDInputStream* pInput)
         strFile += strFile2.Mid(7).c_str();
       } 
     }
-    if (result < 0 && m_dllAvFormat.avformat_open_input(&m_pFormatContext, strFile.c_str(), iformat, NULL) < 0 )
+
+    else if (strFile.substr(0, 4) == "http") {
+      int i = strFile.find_first_of('|');
+      if (i != std::string::npos) {
+	if (strFile.substr(i + 1, 11) == "User-Agent=")
+	  m_dllAvUtil.av_dict_set(&lavf_opts,
+	  //m_dllAvUtil.av_opt_set(m_pFormatContext,
+		"user-agent", strFile.substr(i + 12,
+		strFile.substr(i + 12).find_first_of('&')).c_str(), 0);
+
+	strFile.resize(i);	//strFile[i] = '\0';
+      }
+    } else if (strFile.substr(0, 7) == "pipe://") {
+      strFile = "pipe:" + strFile.substr(7, strFile.find_last_of('/'));
+    }
+
+    m_dllAvFormat.avformat_network_init();
+
+    if (result < 0 && m_dllAvFormat.avformat_open_input(&m_pFormatContext, strFile.c_str(), iformat, &lavf_opts) < 0 )
     {
       CLog::Log(LOGDEBUG, "Error, could not open file %s", strFile.c_str());
       Dispose();
@@ -412,7 +436,6 @@ bool CDVDDemuxFFmpeg::Open(CDVDInputStream* pInput)
 
 
     // open the demuxer
-    m_pFormatContext     = m_dllAvFormat.avformat_alloc_context();
     m_pFormatContext->pb = m_ioContext;
 
     if (m_dllAvFormat.avformat_open_input(&m_pFormatContext, strFile.c_str(), iformat, NULL) < 0)
@@ -979,7 +1002,7 @@ void CDVDDemuxFFmpeg::AddStream(int iId)
           st->bPTSInvalid = true;
 
         //average fps is more accurate for mkv files
-        if (m_bMatroska && pStream->avg_frame_rate.den && pStream->avg_frame_rate.num)
+        if ((m_bMatroska || strncmp(m_pFormatContext->iformat->name, "mov", 3) == 0) && pStream->avg_frame_rate.den && pStream->avg_frame_rate.num)
         {
           st->iFpsRate = pStream->avg_frame_rate.num;
           st->iFpsScale = pStream->avg_frame_rate.den;

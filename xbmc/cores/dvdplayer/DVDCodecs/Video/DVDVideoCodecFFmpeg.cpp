@@ -140,7 +140,6 @@ CDVDVideoCodecFFmpeg::CDVDVideoCodecFFmpeg() : CDVDVideoCodec()
   m_bSoftware = false;
   m_pHardware = NULL;
   m_iLastKeyframe = 0;
-  m_dts = DVD_NOPTS_VALUE;
   m_started = false;
 }
 
@@ -296,7 +295,12 @@ bool CDVDVideoCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options
   if( num_threads > 1 && !hints.software && m_pHardware == NULL // thumbnail extraction fails when run threaded
   && ( pCodec->id == CODEC_ID_H264
     || pCodec->id == CODEC_ID_MPEG4 ))
-    m_pCodecContext->thread_count = num_threads;
+    // XXX: save one core for audio, streaming, etc.?
+    m_pCodecContext->thread_count = num_threads/* - 1*/;
+
+  //m_dllAvUtil.av_opt_set(m_pCodecContext, "auto", "1", 0);
+  //m_dllAvUtil.av_opt_set(m_pCodecContext, "fast", "true", 0);
+  m_pCodecContext->flags2 |= CODEC_FLAG2_FAST;
 
   if (m_dllAvCodec.avcodec_open2(m_pCodecContext, pCodec, NULL) < 0)
   {
@@ -458,7 +462,7 @@ int CDVDVideoCodecFFmpeg::Decode(BYTE* pData, int iSize, double dts, double pts)
       return result;
   }
 
-  m_dts = dts;
+  m_dts.push(dts);
   m_pCodecContext->reordered_opaque = pts_dtoi(pts);
 
   AVPacket avpkt;
@@ -633,8 +637,10 @@ bool CDVDVideoCodecFFmpeg::GetPictureCommon(DVDVideoPicture* pDvdVideoPicture)
     pDvdVideoPicture->qscale_type = DVP_QSCALE_UNKNOWN;
   }
 
-  pDvdVideoPicture->dts = m_dts;
-  m_dts = DVD_NOPTS_VALUE;
+  if (!m_dts.empty()) {
+    pDvdVideoPicture->dts = m_dts.front();
+    m_dts.pop();
+  }
   if (m_pFrame->reordered_opaque)
     pDvdVideoPicture->pts = pts_itod(m_pFrame->reordered_opaque);
   else

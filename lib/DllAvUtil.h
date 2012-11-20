@@ -95,6 +95,7 @@ class DllAvUtilInterface
 public:
   virtual ~DllAvUtilInterface() {}
   virtual void av_log_set_callback(void (*)(void*, int, const char*, va_list))=0;
+  virtual void av_log_set_level(int)=0;
   virtual void *av_malloc(unsigned int size)=0;
   virtual void *av_mallocz(unsigned int size)=0;
   virtual void *av_realloc(void *ptr, unsigned int size)=0;
@@ -128,6 +129,7 @@ public:
 
   virtual ~DllAvUtilBase() {}
    virtual void av_log_set_callback(void (*foo)(void*, int, const char*, va_list)) { ::av_log_set_callback(foo); }
+   virtual void av_log_set_level(int level) { ::av_log_set_level(level); }
    virtual void *av_malloc(unsigned int size) { return ::av_malloc(size); }
    virtual void *av_mallocz(unsigned int size) { return ::av_mallocz(size); }
    virtual void *av_realloc(void *ptr, unsigned int size) { return ::av_realloc(ptr, size); }
@@ -176,6 +178,7 @@ class DllAvUtilBase : public DllDynamic, DllAvUtilInterface
   LOAD_SYMBOLS()
 
   DEFINE_METHOD1(void, av_log_set_callback, (void (*p1)(void*, int, const char*, va_list)))
+  DEFINE_METHOD1(void, av_log_set_level, (int p1))
   DEFINE_METHOD1(void*, av_malloc, (unsigned int p1))
   DEFINE_METHOD1(void*, av_mallocz, (unsigned int p1))
   DEFINE_METHOD2(void*, av_realloc, (void *p1, unsigned int p2))
@@ -203,6 +206,7 @@ class DllAvUtilBase : public DllDynamic, DllAvUtilInterface
   public:
   BEGIN_METHOD_RESOLVE()
     RESOLVE_METHOD(av_log_set_callback)
+    RESOLVE_METHOD(av_log_set_level)
     RESOLVE_METHOD(av_malloc)
     RESOLVE_METHOD(av_mallocz)
     RESOLVE_METHOD(av_realloc)
@@ -239,6 +243,8 @@ public:
     if( DllAvUtilBase::Load() )
     {
       DllAvUtilBase::av_log_set_callback(ff_avutil_log);
+      if (0 < CLog::GetLogLevel())
+	DllAvUtilBase::av_log_set_level(AV_LOG_VERBOSE);
       return true;
     }
     return false;

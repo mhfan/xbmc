@@ -98,6 +98,7 @@ public:
   virtual int avformat_write_header (AVFormatContext *s, AVDictionary **options)=0;
   virtual int av_write_trailer(AVFormatContext *s)=0;
   virtual int av_write_frame  (AVFormatContext *s, AVPacket *pkt)=0;
+  virtual int avformat_network_init(void) = 0;
 };
 
 #if (defined USE_EXTERNAL_FFMPEG) || (defined TARGET_DARWIN) 
@@ -153,6 +154,7 @@ public:
   virtual int avformat_write_header (AVFormatContext *s, AVDictionary **options) { return ::avformat_write_header (s, options); }
   virtual int av_write_trailer(AVFormatContext *s) { return ::av_write_trailer(s); }
   virtual int av_write_frame  (AVFormatContext *s, AVPacket *pkt) { return ::av_write_frame(s, pkt); }
+  virtual int avformat_network_init(void) { return ::avformat_network_init(void); }
 
   // DLL faking.
   virtual bool ResolveExports() { return true; }
@@ -209,6 +211,7 @@ class DllAvFormat : public DllDynamic, DllAvFormatInterface
   DEFINE_METHOD2(int, avformat_write_header , (AVFormatContext *p1, AVDictionary **p2))
   DEFINE_METHOD1(int, av_write_trailer, (AVFormatContext *p1))
   DEFINE_METHOD2(int, av_write_frame  , (AVFormatContext *p1, AVPacket *p2))
+  DEFINE_METHOD0(int, avformat_network_init)
   BEGIN_METHOD_RESOLVE()
     RESOLVE_METHOD_RENAME(av_register_all, av_register_all_dont_call)
     RESOLVE_METHOD(av_find_input_format)
@@ -243,6 +246,7 @@ class DllAvFormat : public DllDynamic, DllAvFormatInterface
     RESOLVE_METHOD(avformat_write_header)
     RESOLVE_METHOD(av_write_trailer)
     RESOLVE_METHOD(av_write_frame)
+    RESOLVE_METHOD(avformat_network_init)
   END_METHOD_RESOLVE()
 
   /* dependencies of libavformat */

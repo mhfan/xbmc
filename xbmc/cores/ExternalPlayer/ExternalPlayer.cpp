@@ -217,6 +217,12 @@ void CExternalPlayer::Process()
     }
   }
 
+  if (mainFile[0] == '/') mainFile = "file://" + mainFile; else
+  if (mainFile.substr(0, 4) == "http") {
+      int i = mainFile.find_first_of('|');
+      if (i != std::string::npos) mainFile.resize(i);	//mainFile[i] = '\0';
+  }
+
   CLog::Log(LOGNOTICE, "%s: Player : %s", __FUNCTION__, m_filename.c_str());
   CLog::Log(LOGNOTICE, "%s: File   : %s", __FUNCTION__, mainFile.c_str());
   CLog::Log(LOGNOTICE, "%s: Content: %s", __FUNCTION__, archiveContent.c_str());

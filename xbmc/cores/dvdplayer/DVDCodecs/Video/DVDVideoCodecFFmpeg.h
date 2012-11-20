@@ -28,6 +28,8 @@
 #include "DllSwScale.h"
 #include "DllAvFilter.h"
 
+#include <queue>
+
 class CVDPAU;
 class CCriticalSection;
 
@@ -116,7 +118,7 @@ protected:
   bool              m_bSoftware;
   IHardwareDecoder *m_pHardware;
   int m_iLastKeyframe;
-  double m_dts;
   bool   m_started;
+  std::queue<double> m_dts;
   std::vector<PixelFormat> m_formats;
 };
