@@ -482,8 +482,8 @@ void CGUISettings::Initialize()
   CSettingsCategory* aocat = ao;
 #endif
 
-  AddBool(aocat, "audiooutput.ac3passthrough"   , 364, true);
-  AddBool(aocat, "audiooutput.dtspassthrough"   , 254, true);
+  AddBool(aocat, "audiooutput.ac3passthrough"   , 364, false);
+  AddBool(aocat, "audiooutput.dtspassthrough"   , 254, false);
 
 
 #if !defined(TARGET_DARWIN) && !defined(TARGET_RASPBERRY_PI)
@@ -700,7 +700,11 @@ void CGUISettings::Initialize()
   AddBool(g_sysinfo.HasVDADecoder() ? vp: NULL, "videoplayer.usevda", 13429, true);
 #endif
 #ifdef HAVE_LIBOPENMAX
+#ifdef TARGET_ANDROID
+  AddBool(vp, "videoplayer.useomx", 13430, false);
+#else
   AddBool(vp, "videoplayer.useomx", 13430, true);
+#endif
 #endif
 #ifdef HAVE_VIDEOTOOLBOXDECODER
   AddBool(g_sysinfo.HasVideoToolBoxDecoder() ? vp: NULL, "videoplayer.usevideotoolbox", 13432, true);
@@ -824,16 +828,16 @@ void CGUISettings::Initialize()
   AddGroup(SETTINGS_SERVICE, 14036);
 
   CSettingsCategory* srvGeneral = AddCategory(SETTINGS_SERVICE, "general", 16000);
-  AddString(srvGeneral,"services.devicename", 1271, "XBMC", EDIT_CONTROL_INPUT);
+  AddString(srvGeneral,"services.devicename", 1271, "SmartQ-XBMC", EDIT_CONTROL_INPUT);
 
   CSettingsCategory* srvUpnp = AddCategory(SETTINGS_SERVICE, "upnp", 20187);
   AddBool(srvUpnp, "services.upnpserver", 21360, false);
   AddBool(srvUpnp, "services.upnpannounce", 20188, true);
-  AddBool(srvUpnp, "services.upnprenderer", 21881, false);
+  AddBool(srvUpnp, "services.upnprenderer", 21881, true);
 
 #ifdef HAS_WEB_SERVER
   CSettingsCategory* srvWeb = AddCategory(SETTINGS_SERVICE, "webserver", 33101);
-  AddBool(srvWeb,  "services.webserver",        263, false);
+  AddBool(srvWeb,  "services.webserver",        263, true);
   AddString(srvWeb,"services.webserverport",    730, CUtil::CanBindPrivileged()?"80":"8080", EDIT_CONTROL_NUMBER_INPUT, false, 730);
   AddString(srvWeb,"services.webserverusername",1048, "xbmc", EDIT_CONTROL_INPUT);
   AddString(srvWeb,"services.webserverpassword",733, "", EDIT_CONTROL_HIDDEN_INPUT, true, 733);
@@ -845,7 +849,7 @@ void CGUISettings::Initialize()
   AddString(NULL,"services.esport",            792, "9777", EDIT_CONTROL_NUMBER_INPUT, false, 792);
   AddInt(NULL,   "services.esportrange",       793, 10, 1, 1, 100, SPIN_CONTROL_INT);
   AddInt(NULL,   "services.esmaxclients",      797, 20, 1, 1, 100, SPIN_CONTROL_INT);
-  AddBool(srvEvent,  "services.esallinterfaces",   794, false);
+  AddBool(srvEvent,  "services.esallinterfaces",   794, true);
   AddInt(NULL,   "services.esinitialdelay",    795, 750, 5, 5, 10000, SPIN_CONTROL_INT);
   AddInt(NULL,   "services.escontinuousdelay", 796, 25, 5, 5, 10000, SPIN_CONTROL_INT);
 #endif
@@ -860,7 +864,7 @@ void CGUISettings::Initialize()
 
 #ifdef HAS_AIRPLAY
   CSettingsCategory* srvAirplay = AddCategory(SETTINGS_SERVICE, "airplay", 1273);
-  AddBool(srvAirplay, "services.airplay", 1270, false);
+  AddBool(srvAirplay, "services.airplay", 1270, true);
   AddBool(srvAirplay, "services.useairplaypassword", 1272, false);
   AddString(srvAirplay, "services.airplaypassword", 733, "", EDIT_CONTROL_HIDDEN_INPUT, false, 733);
 #endif
@@ -880,7 +884,7 @@ void CGUISettings::Initialize()
   AddString(laf, "lookandfeel.skinsettings", 21417, "", BUTTON_CONTROL_STANDARD);
   AddString(laf, "lookandfeel.skintheme",15111,"SKINDEFAULT", SPIN_CONTROL_TEXT);
   AddString(laf, "lookandfeel.skincolors",14078, "SKINDEFAULT", SPIN_CONTROL_TEXT);
-  AddString(laf, "lookandfeel.font",13303,"Default", SPIN_CONTROL_TEXT);
+  AddString(laf, "lookandfeel.font",13303,"Arial", SPIN_CONTROL_TEXT);
   AddInt(laf, "lookandfeel.skinzoom",20109, 0, -20, 2, 20, SPIN_CONTROL_INT, MASK_PERCENT);
   AddInt(laf, "lookandfeel.startupwindow",512,1, WINDOW_HOME, 1, WINDOW_PYTHON_END, SPIN_CONTROL_TEXT);
   AddString(laf, "lookandfeel.soundskin",15108,"SKINDEFAULT", SPIN_CONTROL_TEXT);
@@ -889,8 +893,8 @@ void CGUISettings::Initialize()
   AddString(laf, "lookandfeel.rssedit", 21450, "", BUTTON_CONTROL_STANDARD);
 
   CSettingsCategory* loc = AddCategory(SETTINGS_APPEARANCE, "locale", 14090);
-  AddString(loc, "locale.language",248,"English", SPIN_CONTROL_TEXT);
-  AddString(loc, "locale.country", 20026, "USA (12h)", SPIN_CONTROL_TEXT);
+  AddString(loc, "locale.language",248,"Chinese (Simple)", SPIN_CONTROL_TEXT);
+  AddString(loc, "locale.country", 20026, "Beijing (24h)", SPIN_CONTROL_TEXT);
   AddString(loc, "locale.charset", 14091, "DEFAULT", SPIN_CONTROL_TEXT); // charset is set by the language file
 
   bool use_timezone = false;
@@ -941,6 +945,10 @@ void CGUISettings::Initialize()
   AddInt(NULL, "window.height", 0, 480, 10, 1, INT_MAX, SPIN_CONTROL_INT);
 
   AddPath(NULL,"system.playlistspath",20006,"set default",BUTTON_CONTROL_PATH_INPUT,false);
+
+#if defined(TARGET_ANDROID) && !defined(HAS_DVD_DRIVE)
+  return;	// XXX:
+#endif
 
   // tv settings (access over TV menu from home window)
   AddGroup(SETTINGS_PVR, 19180);
