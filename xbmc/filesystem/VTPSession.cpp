@@ -102,6 +102,9 @@ bool CVTPSession::OpenStreamSocket(SOCKET& sock, struct sockaddr_in& address2)
   address.sin_addr.s_addr = INADDR_ANY;
   address.sin_port        = 0;
 
+  int yes = 1;
+  setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+
   if(bind(sock, (struct sockaddr*) &address, sizeof(address)) == SOCKET_ERROR)
   {
     CLog::Log(LOGERROR, "CVTPSession::OpenStreamSocket - bind failed");

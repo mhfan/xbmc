@@ -270,6 +270,9 @@ bool CTCPServer::InitializeBlue()
   sa.addressFamily = AF_BTH;
   sa.port          = BT_PORT_ANY;
 
+  int yes = 1;
+  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+
   if(bind(fd, (SOCKADDR*)&sa, sizeof(sa)) < 0)
   {
     CLog::Log(LOGINFO, "JSONRPC Server: Unable to bind to bluetooth socket");
@@ -334,6 +337,9 @@ bool CTCPServer::InitializeBlue()
   sa.rc_family  = AF_BLUETOOTH;
   sa.rc_bdaddr  = bt_bdaddr_any;
   sa.rc_channel = 0;
+
+  int yes = 1;
+  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 
   if(bind(fd, (struct sockaddr*)&sa, sizeof(sa)) < 0)
   {
@@ -455,6 +461,9 @@ bool CTCPServer::InitializeTCP()
     CLog::Log(LOGERROR, "JSONRPC Server: Failed to create serversocket");
     return false;
   }
+
+  int yes = 1;
+  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 
   if (bind(fd, (struct sockaddr*)&myaddr, sizeof myaddr) < 0)
   {
