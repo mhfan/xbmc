@@ -857,6 +857,49 @@ bool CXBMCApp::StartActivity(const string &package, const string &intent, const 
   return true;
 }
 
+bool CXBMCApp::IsNetworkAvailable()
+{
+  if (m_activity == NULL) {
+    android_printf("  missing activity => unable to use the function");
+    return false;
+  }
+
+  JNIEnv *env = NULL;
+  AttachCurrentThread(&env);
+  jobject oActivity = m_activity->clazz;
+  jclass cActivity = env->GetObjectClass(oActivity);
+  bool m_isNetworkAvailable = false;
+
+  jmethodID midActivityGetSystemService = env->GetMethodID(cActivity, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
+  jstring sConnectivityService = env->NewStringUTF("connectivity"); // CONNECTIVITY_SERVICE
+  jobject oConnectivityManager = env->CallObjectMethod(oActivity, midActivityGetSystemService, sConnectivityService);
+
+  jclass cConnectivityManager = env->GetObjectClass(oConnectivityManager);
+  jmethodID midgetActiveNetworkInfo = env->GetMethodID(cConnectivityManager, "getActiveNetworkInfo","()Landroid/net/NetworkInfo;");
+  jobject oNetworkInfo = env->CallObjectMethod(oConnectivityManager, midgetActiveNetworkInfo);
+
+  if (oNetworkInfo != NULL) {
+    jclass cNetworkInfo = env->GetObjectClass(oNetworkInfo);
+    jmethodID midisAvailable = env->GetMethodID(cNetworkInfo,"isAvailable","()Z");
+    jobject isNetworkAvailable = env->CallObjectMethod(oNetworkInfo, midisAvailable);
+    m_isNetworkAvailable = isNetworkAvailable;
+
+    env->DeleteLocalRef(cNetworkInfo);
+    env->DeleteLocalRef(isNetworkAvailable);
+  }
+
+  env->DeleteLocalRef(oNetworkInfo);
+  env->DeleteLocalRef(cConnectivityManager);
+  env->DeleteLocalRef(oConnectivityManager);
+  env->DeleteLocalRef(sConnectivityService);
+  env->DeleteLocalRef(cActivity);
+  env->DeleteLocalRef(oActivity);
+
+  DetachCurrentThread();
+
+  return m_isNetworkAvailable;
+}
+
 int CXBMCApp::GetBatteryLevel()
 {
   if (m_activity == NULL)

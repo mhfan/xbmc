@@ -82,6 +82,7 @@ public:
   static int SetBuffersGeometry(int width, int height, int format);
   static int android_printf(const char *format, ...);
   
+  static bool IsNetworkAvailable();
   static int GetBatteryLevel();
   static bool StartActivity(const std::string &package, const std::string &intent = std::string(), const std::string &dataType = std::string(), const std::string &dataURI = std::string());
   static bool ListApplications(std::vector <androidPackage> *applications);

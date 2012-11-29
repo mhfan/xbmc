@@ -33,6 +33,10 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#if defined(TARGET_ANDROID)
+#include "xbmc/android/activity/XBMCApp.h"
+#endif
+
 using namespace std;
 
 /* slightly modified in_ether taken from the etherboot project (http://sourceforge.net/projects/etherboot) */
@@ -170,6 +174,9 @@ bool CNetwork::HasInterfaceForIP(unsigned long address)
 
 bool CNetwork::IsAvailable(bool wait /*= false*/)
 {
+#if defined(TARGET_ANDROID)
+    return CXBMCApp::IsNetworkAvailable();	// XXX:
+#endif
   if (wait)
   {
     // NOTE: Not implemented in linuxport branch as 99.9% of the time
@@ -183,6 +190,9 @@ bool CNetwork::IsAvailable(bool wait /*= false*/)
 
 bool CNetwork::IsConnected()
 {
+#if defined(TARGET_ANDROID)
+    return CXBMCApp::IsNetworkAvailable();
+#endif
    return GetFirstConnectedInterface() != NULL;
 }
 
