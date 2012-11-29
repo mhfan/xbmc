@@ -350,6 +350,7 @@
 #define WINDOW_SKIN_SETTINGS              10035
 
 #define WINDOW_ADDON_BROWSER              10040
+#define WINDOW_QR_CODE_MENU               10041
 
 #define WINDOW_SCREENSAVER_DIM               97
 #define WINDOW_DEBUG_INFO                    98

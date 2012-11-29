@@ -6,6 +6,7 @@ SRCS=AdvancedSettings.cpp \
      GUIDialogSettings.cpp \
      GUISettings.cpp \
      GUIWindowSettings.cpp \
+     GUIWindowQRCode.cpp \
      GUIWindowSettingsCategory.cpp \
      GUIWindowSettingsProfile.cpp \
      GUIWindowSettingsScreenCalibration.cpp \

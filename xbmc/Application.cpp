@@ -175,6 +175,7 @@
 #include "guilib/GUIWindowManager.h"
 #include "windows/GUIWindowHome.h"
 #include "settings/GUIWindowSettings.h"
+#include "settings/GUIWindowQRCode.h"
 #include "windows/GUIWindowFileManager.h"
 #include "settings/GUIWindowSettingsCategory.h"
 #include "music/windows/GUIWindowMusicPlaylist.h"
@@ -1231,6 +1232,7 @@ bool CApplication::Initialize()
     g_windowManager.Add(new CGUIWindowPictures);
     g_windowManager.Add(new CGUIWindowFileManager);
     g_windowManager.Add(new CGUIWindowSettings);
+    g_windowManager.Add(new CGUIWindowQRCode);
     g_windowManager.Add(new CGUIWindowSystemInfo);
 #ifdef HAS_GL
     g_windowManager.Add(new CGUIWindowTestPatternGL);
@@ -3406,6 +3408,7 @@ bool CApplication::Cleanup()
     g_windowManager.Delete(WINDOW_VISUALISATION);
     g_windowManager.Delete(WINDOW_KARAOKELYRICS);
     g_windowManager.Delete(WINDOW_SETTINGS_MENU);
+    g_windowManager.Delete(WINDOW_QR_CODE_MENU);
     g_windowManager.Delete(WINDOW_SETTINGS_PROFILES);
     g_windowManager.Delete(WINDOW_SETTINGS_MYPICTURES);  // all the settings categories
     g_windowManager.Delete(WINDOW_TEST_PATTERN);

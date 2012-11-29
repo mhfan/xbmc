@@ -244,6 +244,7 @@ static const ActionMapping windows[] =
         {"filemanager"              , WINDOW_FILES},
         {"files"                    , WINDOW_FILES}, // backward compat
         {"settings"                 , WINDOW_SETTINGS_MENU},
+        {"qrcode"                   , WINDOW_QR_CODE_MENU},
         {"music"                    , WINDOW_MUSIC},
         {"video"                    , WINDOW_VIDEOS},
         {"videos"                   , WINDOW_VIDEO_NAV},
