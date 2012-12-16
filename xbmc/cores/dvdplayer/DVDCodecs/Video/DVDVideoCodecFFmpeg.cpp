@@ -167,6 +167,7 @@ bool CDVDVideoCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options
   for(std::vector<ERenderFormat>::iterator it = options.m_formats.begin(); it != options.m_formats.end(); ++it)
   {
     m_formats.push_back((PixelFormat)CDVDCodecUtils::PixfmtFromEFormat(*it));
+    if(*it == RENDER_FMT_RGBA) m_formats.push_back(PIX_FMT_RGBA); else
     if(*it == RENDER_FMT_YUV420P)
       m_formats.push_back(PIX_FMT_YUVJ420P);
   }

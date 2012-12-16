@@ -1132,6 +1132,7 @@ int CDVDPlayerVideo::OutputPicture(const DVDVideoPicture* src, double pts)
       case RENDER_FMT_NONE:
         formatstr = "NONE";
         break;
+      case RENDER_FMT_RGBA: formatstr = "RGBA"; break;
     }
 
     if(m_bAllowFullscreen)

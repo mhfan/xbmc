@@ -124,6 +124,7 @@ bool CDVDCodecUtils::CopyPicture(YV12Image* pImage, DVDVideoPicture *pSrc)
       d += pImage->stride[0];
     }
   }
+  if (!pSrc->iLineSize[1]) return true;
   s = pSrc->data[1];
   d = pImage->plane[1];
   w =(pImage->width  >> pImage->cshift_x) * pImage->bpp;
@@ -459,6 +460,7 @@ static const EFormatMap g_format_map[] = {
 ,  { PIX_FMT_YUYV422,     RENDER_FMT_YUYV422    }
 ,  { PIX_FMT_VAAPI_VLD,   RENDER_FMT_VAAPI      }
 ,  { PIX_FMT_DXVA2_VLD,   RENDER_FMT_DXVA       }
+,  { PIX_FMT_RGBA     ,   RENDER_FMT_RGBA       }
 ,  { PIX_FMT_NONE     ,   RENDER_FMT_NONE       }
 };
 

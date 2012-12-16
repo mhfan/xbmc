@@ -256,6 +256,7 @@ int CLinuxRendererGLES::GetImage(YV12Image *image, int source, bool readonly)
   image->flags    = im.flags;
   image->cshift_x = im.cshift_x;
   image->cshift_y = im.cshift_y;
+  if (m_format == RENDER_FMT_RGBA) image->bpp = 4; else
   image->bpp      = 1;
 
   return source;
@@ -525,6 +526,7 @@ unsigned int CLinuxRendererGLES::PreInit()
   m_NumYV12Buffers = 2;
 
   m_formats.push_back(RENDER_FMT_YUV420P);
+  m_formats.push_back(RENDER_FMT_RGBA);
   m_formats.push_back(RENDER_FMT_BYPASS);
 #if defined(HAVE_LIBOPENMAX)
   m_formats.push_back(RENDER_FMT_OMXEGL);
@@ -651,6 +653,9 @@ void CLinuxRendererGLES::LoadShaders(int field)
         break;
       }
       #endif
+      else if (m_format == RENDER_FMT_RGBA) {
+        m_renderMethod = RENDER_SW;	break;
+      }
       // Try GLSL shaders if supported and user requested auto or GLSL.
       if (glCreateProgram)
       {
@@ -1391,6 +1396,7 @@ void CLinuxRendererGLES::UploadYV12Texture(int source)
   }
 
   // if we don't have a shader, fallback to SW YUV2RGB for now
+  if (m_format == RENDER_FMT_RGBA) m_rgbBuffer = im->plane[0]; else
   if (m_renderMethod & RENDER_SW)
   {
     if(m_rgbBufferSize < m_sourceWidth * m_sourceHeight * 4)
@@ -1450,6 +1456,7 @@ void CLinuxRendererGLES::UploadYV12Texture(int source)
                , im->width, im->height
                , m_sourceWidth*4, m_rgbBuffer );
     }
+    if (m_format == RENDER_FMT_RGBA) m_rgbBuffer = NULL;
   }
   else
   {
@@ -1563,6 +1570,13 @@ bool CLinuxRendererGLES::CreateYV12Texture(int index)
 
   im.height = m_sourceHeight;
   im.width  = m_sourceWidth;
+
+  if (m_format == RENDER_FMT_RGBA) {
+    im.stride[0] = im.width * 4;
+    im.planesize[0] = im.stride[0] * im.height;
+    im.planesize[1] = im.planesize[2] = 0;
+    im.cshift_x = im.cshift_y = 0;
+  } else {
   im.cshift_x = 1;
   im.cshift_y = 1;
 
@@ -1573,8 +1587,10 @@ bool CLinuxRendererGLES::CreateYV12Texture(int index)
   im.planesize[0] = im.stride[0] * im.height;
   im.planesize[1] = im.stride[1] * ( im.height >> im.cshift_y );
   im.planesize[2] = im.stride[2] * ( im.height >> im.cshift_y );
+  }
 
   for (int i = 0; i < 3; i++)
+    if (!im.planesize[i]) im.plane[i] = NULL; else
     im.plane[i] = new BYTE[im.planesize[i]];
 
   glEnable(m_textureTarget);

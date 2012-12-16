@@ -810,6 +810,7 @@ int CXBMCRenderManager::AddVideoPicture(DVDVideoPicture& pic)
     return index;
 
   if(pic.format == RENDER_FMT_YUV420P
+  || pic.format == RENDER_FMT_RGBA
   || pic.format == RENDER_FMT_YUV420P10
   || pic.format == RENDER_FMT_YUV420P16)
   {
