@@ -21,11 +21,10 @@
  */
 
 #include "avcodec.h"
-#include "internal.h"
 
 static av_cold int yuv4_decode_init(AVCodecContext *avctx)
 {
-    avctx->pix_fmt = AV_PIX_FMT_YUV420P;
+    avctx->pix_fmt = PIX_FMT_YUV420P;
 
     avctx->coded_frame = avcodec_alloc_frame();
 
@@ -38,7 +37,7 @@ static av_cold int yuv4_decode_init(AVCodecContext *avctx)
 }
 
 static int yuv4_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame, AVPacket *avpkt)
+                             int *data_size, AVPacket *avpkt)
 {
     AVFrame *pic = avctx->coded_frame;
     const uint8_t *src = avpkt->data;
@@ -55,7 +54,7 @@ static int yuv4_decode_frame(AVCodecContext *avctx, void *data,
 
     pic->reference = 0;
 
-    if (ff_get_buffer(avctx, pic) < 0) {
+    if (avctx->get_buffer(avctx, pic) < 0) {
         av_log(avctx, AV_LOG_ERROR, "Could not allocate buffer.\n");
         return AVERROR(ENOMEM);
     }
@@ -82,7 +81,7 @@ static int yuv4_decode_frame(AVCodecContext *avctx, void *data,
         v +=     pic->linesize[2];
     }
 
-    *got_frame = 1;
+    *data_size = sizeof(AVFrame);
     *(AVFrame *)data = *pic;
 
     return avpkt->size;
@@ -101,7 +100,7 @@ static av_cold int yuv4_decode_close(AVCodecContext *avctx)
 AVCodec ff_yuv4_decoder = {
     .name         = "yuv4",
     .type         = AVMEDIA_TYPE_VIDEO,
-    .id           = AV_CODEC_ID_YUV4,
+    .id           = CODEC_ID_YUV4,
     .init         = yuv4_decode_init,
     .decode       = yuv4_decode_frame,
     .close        = yuv4_decode_close,

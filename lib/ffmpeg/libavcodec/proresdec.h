@@ -31,7 +31,6 @@ typedef struct {
     unsigned mb_y;
     unsigned mb_count;
     unsigned data_size;
-    int ret;
 } SliceContext;
 
 typedef struct {

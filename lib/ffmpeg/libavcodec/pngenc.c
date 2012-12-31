@@ -19,12 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 #include "avcodec.h"
-#include "internal.h"
 #include "bytestream.h"
 #include "dsputil.h"
 #include "png.h"
-
-#include "libavutil/avassert.h"
 
 /* TODO:
  * - add 2, 4 and 16 bit depth support
@@ -58,7 +55,7 @@ static void png_get_interlaced_row(uint8_t *dst, int row_size,
     uint8_t *d;
     const uint8_t *s;
 
-    mask =  (int[]){0x80, 0x08, 0x88, 0x22, 0xaa, 0x55, 0xff}[pass];
+    mask = ff_png_pass_mask[pass];
     switch(bits_per_pixel) {
     case 1:
         memset(dst, 0, row_size);
@@ -149,7 +146,7 @@ static uint8_t *png_choose_filter(PNGEncContext *s, uint8_t *dst,
                                   uint8_t *src, uint8_t *top, int size, int bpp)
 {
     int pred = s->filter_type;
-    av_assert0(bpp || !pred);
+    assert(bpp || !pred);
     if(!top && pred)
         pred = PNG_FILTER_VALUE_SUB;
     if(pred == PNG_FILTER_VALUE_MIXED) {
@@ -215,14 +212,12 @@ static int png_write_row(PNGEncContext *s, const uint8_t *data, int size)
     return 0;
 }
 
-static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
-                        const AVFrame *pict, int *got_packet)
-{
+static int encode_frame(AVCodecContext *avctx, unsigned char *buf, int buf_size, void *data){
     PNGEncContext *s = avctx->priv_data;
+    AVFrame *pict = data;
     AVFrame * const p= &s->picture;
     int bit_depth, color_type, y, len, row_size, ret, is_progressive;
-    int bits_per_pixel, pass_row_size, enc_row_size;
-    int64_t max_packet_size;
+    int bits_per_pixel, pass_row_size;
     int compression_level;
     uint8_t *ptr, *top;
     uint8_t *crow_base = NULL, *crow_buf, *crow;
@@ -233,46 +228,45 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     p->pict_type= AV_PICTURE_TYPE_I;
     p->key_frame= 1;
 
+    s->bytestream_start=
+    s->bytestream= buf;
+    s->bytestream_end= buf+buf_size;
+
     is_progressive = !!(avctx->flags & CODEC_FLAG_INTERLACED_DCT);
     switch(avctx->pix_fmt) {
-    case AV_PIX_FMT_RGBA64BE:
+    case PIX_FMT_RGBA64BE:
         bit_depth = 16;
         color_type = PNG_COLOR_TYPE_RGB_ALPHA;
         break;
-    case AV_PIX_FMT_RGB48BE:
+    case PIX_FMT_RGB48BE:
         bit_depth = 16;
         color_type = PNG_COLOR_TYPE_RGB;
         break;
-    case AV_PIX_FMT_RGBA:
-        avctx->bits_per_coded_sample = 32;
+    case PIX_FMT_RGBA:
         bit_depth = 8;
         color_type = PNG_COLOR_TYPE_RGB_ALPHA;
         break;
-    case AV_PIX_FMT_RGB24:
-        avctx->bits_per_coded_sample = 24;
+    case PIX_FMT_RGB24:
         bit_depth = 8;
         color_type = PNG_COLOR_TYPE_RGB;
         break;
-    case AV_PIX_FMT_GRAY16BE:
+    case PIX_FMT_GRAY16BE:
         bit_depth = 16;
         color_type = PNG_COLOR_TYPE_GRAY;
         break;
-    case AV_PIX_FMT_GRAY8:
-        avctx->bits_per_coded_sample = 0x28;
+    case PIX_FMT_GRAY8:
         bit_depth = 8;
         color_type = PNG_COLOR_TYPE_GRAY;
         break;
-    case AV_PIX_FMT_GRAY8A:
+    case PIX_FMT_GRAY8A:
         bit_depth = 8;
         color_type = PNG_COLOR_TYPE_GRAY_ALPHA;
         break;
-    case AV_PIX_FMT_MONOBLACK:
-        avctx->bits_per_coded_sample =
+    case PIX_FMT_MONOBLACK:
         bit_depth = 1;
         color_type = PNG_COLOR_TYPE_GRAY;
         break;
-    case AV_PIX_FMT_PAL8:
-        avctx->bits_per_coded_sample =
+    case PIX_FMT_PAL8:
         bit_depth = 8;
         color_type = PNG_COLOR_TYPE_PALETTE;
         break;
@@ -292,20 +286,6 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
                        Z_DEFLATED, 15, 8, Z_DEFAULT_STRATEGY);
     if (ret != Z_OK)
         return -1;
-
-    enc_row_size    = deflateBound(&s->zstream, row_size);
-    max_packet_size = avctx->height * (int64_t)(enc_row_size +
-                                       ((enc_row_size + IOBUF_SIZE - 1) / IOBUF_SIZE) * 12)
-                      + FF_MIN_BUFFER_SIZE;
-    if (max_packet_size > INT_MAX)
-        return AVERROR(ENOMEM);
-    if ((ret = ff_alloc_packet2(avctx, pkt, max_packet_size)) < 0)
-        return ret;
-
-    s->bytestream_start =
-    s->bytestream       = pkt->data;
-    s->bytestream_end   = pkt->data + pkt->size;
-
     crow_base = av_malloc((row_size + 32) << (s->filter_type == PNG_FILTER_VALUE_MIXED));
     if (!crow_base)
         goto fail;
@@ -322,7 +302,7 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     }
 
     /* write png header */
-    AV_WB64(s->bytestream, PNGSIG);
+    memcpy(s->bytestream, ff_pngsig, 8);
     s->bytestream += 8;
 
     AV_WB32(s->buf, avctx->width);
@@ -334,11 +314,6 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     s->buf[12] = is_progressive; /* interlace type */
 
     png_write_chunk(&s->bytestream, MKTAG('I', 'H', 'D', 'R'), s->buf, 13);
-
-    AV_WB32(s->buf, avctx->sample_aspect_ratio.num);
-    AV_WB32(s->buf + 4, avctx->sample_aspect_ratio.den);
-    s->buf[8] = 0; /* unit specifier is unknown */
-    png_write_chunk(&s->bytestream, MKTAG('p', 'H', 'Y', 's'), s->buf, 9);
 
     /* put the palette if needed */
     if (color_type == PNG_COLOR_TYPE_PALETTE) {
@@ -372,7 +347,7 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
         int pass;
 
         for(pass = 0; pass < NB_PASSES; pass++) {
-            /* NOTE: a pass is completely omitted if no pixels would be
+            /* NOTE: a pass is completely omited if no pixels would be
                output */
             pass_row_size = ff_png_pass_row_size(pass, bits_per_pixel, avctx->width);
             if (pass_row_size > 0) {
@@ -418,11 +393,7 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     }
     png_write_chunk(&s->bytestream, MKTAG('I', 'E', 'N', 'D'), NULL, 0);
 
-    pkt->size   = s->bytestream - s->bytestream_start;
-    pkt->flags |= AV_PKT_FLAG_KEY;
-    *got_packet = 1;
-    ret         = 0;
-
+    ret = s->bytestream - s->bytestream_start;
  the_end:
     av_free(crow_base);
     av_free(progressive_buf);
@@ -439,10 +410,10 @@ static av_cold int png_enc_init(AVCodecContext *avctx){
 
     avcodec_get_frame_defaults(&s->picture);
     avctx->coded_frame= &s->picture;
-    ff_dsputil_init(&s->dsp, avctx);
+    dsputil_init(&s->dsp, avctx);
 
     s->filter_type = av_clip(avctx->prediction_method, PNG_FILTER_VALUE_NONE, PNG_FILTER_VALUE_MIXED);
-    if(avctx->pix_fmt == AV_PIX_FMT_MONOBLACK)
+    if(avctx->pix_fmt == PIX_FMT_MONOBLACK)
         s->filter_type = PNG_FILTER_VALUE_NONE;
 
     return 0;
@@ -451,18 +422,15 @@ static av_cold int png_enc_init(AVCodecContext *avctx){
 AVCodec ff_png_encoder = {
     .name           = "png",
     .type           = AVMEDIA_TYPE_VIDEO,
-    .id             = AV_CODEC_ID_PNG,
+    .id             = CODEC_ID_PNG,
     .priv_data_size = sizeof(PNGEncContext),
     .init           = png_enc_init,
-    .encode2        = encode_frame,
-    .capabilities   = CODEC_CAP_FRAME_THREADS | CODEC_CAP_INTRA_ONLY,
-    .pix_fmts       = (const enum AVPixelFormat[]){
-        AV_PIX_FMT_RGB24, AV_PIX_FMT_RGBA,
-        AV_PIX_FMT_RGB48BE, AV_PIX_FMT_RGBA64BE,
-        AV_PIX_FMT_PAL8,
-        AV_PIX_FMT_GRAY8, AV_PIX_FMT_GRAY8A,
-        AV_PIX_FMT_GRAY16BE,
-        AV_PIX_FMT_MONOBLACK, AV_PIX_FMT_NONE
-    },
-    .long_name      = NULL_IF_CONFIG_SMALL("PNG (Portable Network Graphics) image"),
+    .encode         = encode_frame,
+    .pix_fmts= (const enum PixelFormat[]){PIX_FMT_RGB24, PIX_FMT_RGBA,
+                                          PIX_FMT_RGB48BE, PIX_FMT_RGBA64BE,
+                                          PIX_FMT_PAL8,
+                                          PIX_FMT_GRAY8, PIX_FMT_GRAY8A,
+                                          PIX_FMT_GRAY16BE,
+                                          PIX_FMT_MONOBLACK, PIX_FMT_NONE},
+    .long_name= NULL_IF_CONFIG_SMALL("PNG image"),
 };

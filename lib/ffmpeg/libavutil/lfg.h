@@ -22,7 +22,7 @@
 #ifndef AVUTIL_LFG_H
 #define AVUTIL_LFG_H
 
-typedef struct AVLFG {
+typedef struct {
     unsigned int state[64];
     int index;
 } AVLFG;

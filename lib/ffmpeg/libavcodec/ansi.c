@@ -24,12 +24,9 @@
  * ASCII/ANSI art decoder
  */
 
-#include "libavutil/common.h"
 #include "libavutil/lfg.h"
-#include "libavutil/xga_font_data.h"
 #include "avcodec.h"
 #include "cga_data.h"
-#include "internal.h"
 
 #define ATTR_BOLD         0x01  /**< Bold/Bright-foreground (mode 1) */
 #define ATTR_FAINT        0x02  /**< Faint (mode 2) */
@@ -60,7 +57,6 @@ typedef struct {
     int attributes;       /**< attribute flags */
     int fg;               /**< foreground color */
     int bg;               /**< background color */
-    int first_frame;
 
     /* ansi parser state machine */
     enum {
@@ -77,10 +73,10 @@ typedef struct {
 static av_cold int decode_init(AVCodecContext *avctx)
 {
     AnsiContext *s = avctx->priv_data;
-    avctx->pix_fmt = AV_PIX_FMT_PAL8;
+    avctx->pix_fmt = PIX_FMT_PAL8;
 
     /* defaults */
-    s->font        = avpriv_vga16_font;
+    s->font        = ff_vga16_font;
     s->font_height = 16;
     s->fg          = DEFAULT_FG_COLOR;
     s->bg          = DEFAULT_BG_COLOR;
@@ -90,21 +86,6 @@ static av_cold int decode_init(AVCodecContext *avctx)
         avcodec_set_dimensions(avctx, 80<<3, 25<<4);
 
     return 0;
-}
-
-static void set_palette(uint32_t *pal)
-{
-    int r, g, b;
-    memcpy(pal, ff_cga_palette, 16 * 4);
-    pal += 16;
-#define COLOR(x) ((x) * 40 + 55)
-    for (r = 0; r < 6; r++)
-        for (g = 0; g < 6; g++)
-            for (b = 0; b < 6; b++)
-                *pal++ = 0xFF000000 | (COLOR(r) << 16) | (COLOR(g) << 8) | COLOR(b);
-#define GRAY(x) ((x) * 10 + 8)
-    for (g = 0; g < 24; g++)
-        *pal++ = 0xFF000000 | (GRAY(g) << 16) | (GRAY(g) << 8) | GRAY(g);
 }
 
 static void hscroll(AVCodecContext *avctx)
@@ -201,23 +182,21 @@ static int execute_code(AVCodecContext * avctx, int c)
     case 'l': //reset screen mode
         if (s->nb_args < 2)
             s->args[0] = DEFAULT_SCREEN_MODE;
-        width = avctx->width;
-        height = avctx->height;
         switch(s->args[0]) {
         case 0: case 1: case 4: case 5: case 13: case 19: //320x200 (25 rows)
-            s->font = avpriv_cga_font;
+            s->font = ff_cga_font;
             s->font_height = 8;
             width  = 40<<3;
             height = 25<<3;
             break;
         case 2: case 3: //640x400 (25 rows)
-            s->font = avpriv_vga16_font;
+            s->font = ff_vga16_font;
             s->font_height = 16;
             width  = 80<<3;
             height = 25<<4;
             break;
         case 6: case 14: //640x200 (25 rows)
-            s->font = avpriv_cga_font;
+            s->font = ff_cga_font;
             s->font_height = 8;
             width  = 80<<3;
             height = 25<<3;
@@ -225,13 +204,13 @@ static int execute_code(AVCodecContext * avctx, int c)
         case 7: //set line wrapping
             break;
         case 15: case 16: //640x350 (43 rows)
-            s->font = avpriv_cga_font;
+            s->font = ff_cga_font;
             s->font_height = 8;
             width  = 80<<3;
             height = 43<<3;
             break;
         case 17: case 18: //640x480 (60 rows)
-            s->font = avpriv_cga_font;
+            s->font = ff_cga_font;
             s->font_height = 8;
             width  = 80<<3;
             height = 60<<4;
@@ -243,14 +222,14 @@ static int execute_code(AVCodecContext * avctx, int c)
             if (s->frame.data[0])
                 avctx->release_buffer(avctx, &s->frame);
             avcodec_set_dimensions(avctx, width, height);
-            ret = ff_get_buffer(avctx, &s->frame);
+            ret = avctx->get_buffer(avctx, &s->frame);
             if (ret < 0) {
                 av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
                 return ret;
             }
             s->frame.pict_type           = AV_PICTURE_TYPE_I;
             s->frame.palette_has_changed = 1;
-            set_palette((uint32_t *)s->frame.data[1]);
+            memcpy(s->frame.data[1], ff_cga_palette, 16 * 4);
             erase_screen(avctx);
         } else if (c == 'l') {
             erase_screen(avctx);
@@ -298,20 +277,12 @@ static int execute_code(AVCodecContext * avctx, int c)
                 s->bg = DEFAULT_BG_COLOR;
             } else if (m == 1 || m == 2 || m == 4 || m == 5 || m == 7 || m == 8) {
                 s->attributes |= 1 << (m - 1);
-            } else if (m >= 30 && m <= 37) {
+            } else if (m >= 30 && m <= 38) {
                 s->fg = ansi_to_cga[m - 30];
-            } else if (m == 38 && i + 2 < FFMIN(s->nb_args, MAX_NB_ARGS) && s->args[i + 1] == 5 && s->args[i + 2] < 256) {
-                int index = s->args[i + 2];
-                s->fg = index < 16 ? ansi_to_cga[index] : index;
-                i += 2;
             } else if (m == 39) {
                 s->fg = ansi_to_cga[DEFAULT_FG_COLOR];
             } else if (m >= 40 && m <= 47) {
                 s->bg = ansi_to_cga[m - 40];
-            } else if (m == 48 && i + 2 < FFMIN(s->nb_args, MAX_NB_ARGS) && s->args[i + 1] == 5 && s->args[i + 2] < 256) {
-                int index = s->args[i + 2];
-                s->bg = index < 16 ? ansi_to_cga[index] : index;
-                i += 2;
             } else if (m == 49) {
                 s->fg = ansi_to_cga[DEFAULT_BG_COLOR];
             } else {
@@ -339,7 +310,7 @@ static int execute_code(AVCodecContext * avctx, int c)
 }
 
 static int decode_frame(AVCodecContext *avctx,
-                            void *data, int *got_frame,
+                            void *data, int *data_size,
                             AVPacket *avpkt)
 {
     AnsiContext *s = avctx->priv_data;
@@ -353,19 +324,9 @@ static int decode_frame(AVCodecContext *avctx,
         av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
         return ret;
     }
-    if (!avctx->frame_number) {
-        for (i=0; i<avctx->height; i++)
-            memset(s->frame.data[0]+ i*s->frame.linesize[0], 0, avctx->width);
-        memset(s->frame.data[1], 0, AVPALETTE_SIZE);
-    }
-
     s->frame.pict_type           = AV_PICTURE_TYPE_I;
     s->frame.palette_has_changed = 1;
-    set_palette((uint32_t *)s->frame.data[1]);
-    if (!s->first_frame) {
-        erase_screen(avctx);
-        s->first_frame = 1;
-    }
+    memcpy(s->frame.data[1], ff_cga_palette, 16 * 4);
 
     while(buf < buf_end) {
         switch(s->state) {
@@ -404,10 +365,11 @@ static int decode_frame(AVCodecContext *avctx,
             if (buf[0] == '[') {
                 s->state   = STATE_CODE;
                 s->nb_args = 0;
-                s->args[0] = -1;
+                s->args[0] = 0;
             } else {
                 s->state = STATE_NORMAL;
                 draw_char(avctx, 0x1B);
+                    return -1;
                 continue;
             }
             break;
@@ -416,7 +378,7 @@ static int decode_frame(AVCodecContext *avctx,
             case '0': case '1': case '2': case '3': case '4':
             case '5': case '6': case '7': case '8': case '9':
                 if (s->nb_args < MAX_NB_ARGS)
-                    s->args[s->nb_args] = FFMAX(s->args[s->nb_args], 0) * 10 + buf[0] - '0';
+                    s->args[s->nb_args] = s->args[s->nb_args] * 10 + buf[0] - '0';
                 break;
             case ';':
                 s->nb_args++;
@@ -432,7 +394,7 @@ static int decode_frame(AVCodecContext *avctx,
             default:
                 if (s->nb_args > MAX_NB_ARGS)
                     av_log(avctx, AV_LOG_WARNING, "args overflow (%i)\n", s->nb_args);
-                if (s->nb_args < MAX_NB_ARGS && s->args[s->nb_args] >= 0)
+                if (s->nb_args < MAX_NB_ARGS && s->args[s->nb_args])
                     s->nb_args++;
                 if (execute_code(avctx, buf[0]) < 0)
                     return -1;
@@ -448,7 +410,7 @@ static int decode_frame(AVCodecContext *avctx,
         buf++;
     }
 
-    *got_frame = 1;
+    *data_size = sizeof(AVFrame);
     *(AVFrame*)data = s->frame;
     return buf_size;
 }
@@ -464,7 +426,7 @@ static av_cold int decode_close(AVCodecContext *avctx)
 AVCodec ff_ansi_decoder = {
     .name           = "ansi",
     .type           = AVMEDIA_TYPE_VIDEO,
-    .id             = AV_CODEC_ID_ANSI,
+    .id             = CODEC_ID_ANSI,
     .priv_data_size = sizeof(AnsiContext),
     .init           = decode_init,
     .close          = decode_close,

@@ -39,11 +39,7 @@
 #include <windows.h>
 #include <process.h>
 
-#include "libavutil/common.h"
-#include "libavutil/internal.h"
-#include "libavutil/mem.h"
-
-typedef struct pthread_t {
+typedef struct {
     void *handle;
     void *(*func)(void* arg);
     void *arg;
@@ -57,7 +53,7 @@ typedef CRITICAL_SECTION pthread_mutex_t;
 /* This is the CONDITIONAL_VARIABLE typedef for using Window's native
  * conditional variables on kernels 6.0+.
  * MinGW does not currently have this typedef. */
-typedef struct pthread_cond_t {
+typedef struct {
     void *ptr;
 } pthread_cond_t;
 
@@ -118,7 +114,7 @@ static inline int pthread_mutex_unlock(pthread_mutex_t *m)
 
 /* for pre-Windows 6.0 platforms we need to define and use our own condition
  * variable and api */
-typedef struct  win32_cond_t {
+typedef struct {
     pthread_mutex_t mtx_broadcast;
     pthread_mutex_t mtx_waiter_count;
     volatile int waiter_count;
@@ -198,13 +194,13 @@ static void pthread_cond_broadcast(pthread_cond_t *cond)
     pthread_mutex_unlock(&win32_cond->mtx_broadcast);
 }
 
-static int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
+static void pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 {
     win32_cond_t *win32_cond = cond->ptr;
     int last_waiter;
     if (cond_wait) {
         cond_wait(cond, mutex, INFINITE);
-        return 0;
+        return;
     }
 
     /* non native condition variables */

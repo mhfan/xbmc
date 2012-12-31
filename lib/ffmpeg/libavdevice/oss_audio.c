@@ -33,10 +33,11 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
+#include <sys/select.h>
 
 #include "libavutil/log.h"
 #include "libavutil/opt.h"
-#include "libavutil/time.h"
 #include "libavcodec/avcodec.h"
 #include "avdevice.h"
 #include "libavformat/internal.h"
@@ -49,7 +50,7 @@ typedef struct {
     int sample_rate;
     int channels;
     int frame_size; /* in bytes ! */
-    enum AVCodecID codec_id;
+    enum CodecID codec_id;
     unsigned int flip_left : 1;
     uint8_t buffer[AUDIO_BLOCK_SIZE];
     int buffer_ptr;
@@ -76,11 +77,8 @@ static int audio_open(AVFormatContext *s1, int is_output, const char *audio_devi
     }
 
     /* non blocking mode */
-    if (!is_output) {
-        if (fcntl(audio_fd, F_SETFL, O_NONBLOCK) < 0) {
-            av_log(s1, AV_LOG_WARNING, "%s: Could not enable non block mode (%s)\n", audio_device, strerror(errno));
-        }
-    }
+    if (!is_output)
+        fcntl(audio_fd, F_SETFL, O_NONBLOCK);
 
     s->frame_size = AUDIO_BLOCK_SIZE;
 
@@ -107,10 +105,10 @@ static int audio_open(AVFormatContext *s1, int is_output, const char *audio_devi
 
     switch(tmp) {
     case AFMT_S16_LE:
-        s->codec_id = AV_CODEC_ID_PCM_S16LE;
+        s->codec_id = CODEC_ID_PCM_S16LE;
         break;
     case AFMT_S16_BE:
-        s->codec_id = AV_CODEC_ID_PCM_S16BE;
+        s->codec_id = CODEC_ID_PCM_S16BE;
         break;
     default:
         av_log(s1, AV_LOG_ERROR, "Soundcard does not support 16 bit sample format\n");
@@ -206,7 +204,7 @@ static int audio_write_trailer(AVFormatContext *s1)
 
 /* grab support */
 
-static int audio_read_header(AVFormatContext *s1)
+static int audio_read_header(AVFormatContext *s1, AVFormatParameters *ap)
 {
     AudioData *s = s1->priv_data;
     AVStream *st;
@@ -285,8 +283,8 @@ static int audio_read_close(AVFormatContext *s1)
 
 #if CONFIG_OSS_INDEV
 static const AVOption options[] = {
-    { "sample_rate", "", offsetof(AudioData, sample_rate), AV_OPT_TYPE_INT, {.i64 = 48000}, 1, INT_MAX, AV_OPT_FLAG_DECODING_PARAM },
-    { "channels",    "", offsetof(AudioData, channels),    AV_OPT_TYPE_INT, {.i64 = 2},     1, INT_MAX, AV_OPT_FLAG_DECODING_PARAM },
+    { "sample_rate", "", offsetof(AudioData, sample_rate), AV_OPT_TYPE_INT, {.dbl = 48000}, 1, INT_MAX, AV_OPT_FLAG_DECODING_PARAM },
+    { "channels",    "", offsetof(AudioData, channels),    AV_OPT_TYPE_INT, {.dbl = 2},     1, INT_MAX, AV_OPT_FLAG_DECODING_PARAM },
     { NULL },
 };
 
@@ -299,7 +297,7 @@ static const AVClass oss_demuxer_class = {
 
 AVInputFormat ff_oss_demuxer = {
     .name           = "oss",
-    .long_name      = NULL_IF_CONFIG_SMALL("OSS (Open Sound System) capture"),
+    .long_name      = NULL_IF_CONFIG_SMALL("Open Sound System capture"),
     .priv_data_size = sizeof(AudioData),
     .read_header    = audio_read_header,
     .read_packet    = audio_read_packet,
@@ -312,13 +310,13 @@ AVInputFormat ff_oss_demuxer = {
 #if CONFIG_OSS_OUTDEV
 AVOutputFormat ff_oss_muxer = {
     .name           = "oss",
-    .long_name      = NULL_IF_CONFIG_SMALL("OSS (Open Sound System) playback"),
+    .long_name      = NULL_IF_CONFIG_SMALL("Open Sound System playback"),
     .priv_data_size = sizeof(AudioData),
     /* XXX: we make the assumption that the soundcard accepts this format */
     /* XXX: find better solution with "preinit" method, needed also in
        other formats */
-    .audio_codec    = AV_NE(AV_CODEC_ID_PCM_S16BE, AV_CODEC_ID_PCM_S16LE),
-    .video_codec    = AV_CODEC_ID_NONE,
+    .audio_codec    = AV_NE(CODEC_ID_PCM_S16BE, CODEC_ID_PCM_S16LE),
+    .video_codec    = CODEC_ID_NONE,
     .write_header   = audio_write_header,
     .write_packet   = audio_write_packet,
     .write_trailer  = audio_write_trailer,

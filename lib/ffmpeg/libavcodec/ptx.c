@@ -19,11 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/common.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/imgutils.h"
 #include "avcodec.h"
-#include "internal.h"
 
 typedef struct PTXContext {
     AVFrame picture;
@@ -38,7 +36,7 @@ static av_cold int ptx_init(AVCodecContext *avctx) {
     return 0;
 }
 
-static int ptx_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
+static int ptx_decode_frame(AVCodecContext *avctx, void *data, int *data_size,
                             AVPacket *avpkt) {
     const uint8_t *buf = avpkt->data;
     const uint8_t *buf_end = avpkt->data + avpkt->size;
@@ -57,10 +55,10 @@ static int ptx_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
 
     if (bytes_per_pixel != 2) {
         av_log_ask_for_sample(avctx, "Image format is not RGB15.\n");
-        return AVERROR_PATCHWELCOME;
+        return -1;
     }
 
-    avctx->pix_fmt = AV_PIX_FMT_BGR555LE;
+    avctx->pix_fmt = PIX_FMT_RGB555;
 
     if (buf_end - buf < offset)
         return AVERROR_INVALIDDATA;
@@ -76,7 +74,7 @@ static int ptx_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
         return -1;
     if (w != avctx->width || h != avctx->height)
         avcodec_set_dimensions(avctx, w, h);
-    if (ff_get_buffer(avctx, p) < 0) {
+    if (avctx->get_buffer(avctx, p) < 0) {
         av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
         return -1;
     }
@@ -87,13 +85,19 @@ static int ptx_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
     stride = p->linesize[0];
 
     for (y = 0; y < h && buf_end - buf >= w * bytes_per_pixel; y++) {
+#if HAVE_BIGENDIAN
+        unsigned int x;
+        for (x=0; x<w*bytes_per_pixel; x+=bytes_per_pixel)
+            AV_WN16(ptr+x, AV_RL16(buf+x));
+#else
         memcpy(ptr, buf, w*bytes_per_pixel);
+#endif
         ptr += stride;
         buf += w*bytes_per_pixel;
     }
 
     *picture = s->picture;
-    *got_frame = 1;
+    *data_size = sizeof(AVPicture);
 
     if (y < h) {
         av_log(avctx, AV_LOG_WARNING, "incomplete packet\n");
@@ -115,11 +119,11 @@ static av_cold int ptx_end(AVCodecContext *avctx) {
 AVCodec ff_ptx_decoder = {
     .name           = "ptx",
     .type           = AVMEDIA_TYPE_VIDEO,
-    .id             = AV_CODEC_ID_PTX,
+    .id             = CODEC_ID_PTX,
     .priv_data_size = sizeof(PTXContext),
     .init           = ptx_init,
     .close          = ptx_end,
     .decode         = ptx_decode_frame,
     .capabilities   = CODEC_CAP_DR1,
-    .long_name      = NULL_IF_CONFIG_SMALL("V.Flash PTX image"),
+    .long_name = NULL_IF_CONFIG_SMALL("V.Flash PTX image"),
 };

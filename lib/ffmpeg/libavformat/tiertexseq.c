@@ -24,7 +24,6 @@
  * Tiertex Limited SEQ file demuxer
  */
 
-#include "libavutil/channel_layout.h"
 #include "avformat.h"
 #include "internal.h"
 
@@ -182,7 +181,7 @@ static int seq_parse_frame_data(SeqDemuxContext *seq, AVIOContext *pb)
     return 0;
 }
 
-static int seq_read_header(AVFormatContext *s)
+static int seq_read_header(AVFormatContext *s, AVFormatParameters *ap)
 {
     int i, rc;
     SeqDemuxContext *seq = s->priv_data;
@@ -215,7 +214,7 @@ static int seq_read_header(AVFormatContext *s)
     avpriv_set_pts_info(st, 32, 1, SEQ_FRAME_RATE);
     seq->video_stream_index = st->index;
     st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
-    st->codec->codec_id = AV_CODEC_ID_TIERTEXSEQVIDEO;
+    st->codec->codec_id = CODEC_ID_TIERTEXSEQVIDEO;
     st->codec->codec_tag = 0;  /* no fourcc */
     st->codec->width = SEQ_FRAME_W;
     st->codec->height = SEQ_FRAME_H;
@@ -225,18 +224,16 @@ static int seq_read_header(AVFormatContext *s)
     if (!st)
         return AVERROR(ENOMEM);
 
-    st->start_time = 0;
     avpriv_set_pts_info(st, 32, 1, SEQ_SAMPLE_RATE);
     seq->audio_stream_index = st->index;
     st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
-    st->codec->codec_id = AV_CODEC_ID_PCM_S16BE;
+    st->codec->codec_id = CODEC_ID_PCM_S16BE;
     st->codec->codec_tag = 0;  /* no tag */
     st->codec->channels = 1;
-    st->codec->channel_layout = AV_CH_LAYOUT_MONO;
     st->codec->sample_rate = SEQ_SAMPLE_RATE;
     st->codec->bits_per_coded_sample = 16;
     st->codec->bit_rate = st->codec->sample_rate * st->codec->bits_per_coded_sample * st->codec->channels;
-    st->codec->block_align = st->codec->channels * st->codec->bits_per_coded_sample / 8;
+    st->codec->block_align = st->codec->channels * st->codec->bits_per_coded_sample;
 
     return 0;
 }
@@ -308,7 +305,7 @@ static int seq_read_close(AVFormatContext *s)
 
 AVInputFormat ff_tiertexseq_demuxer = {
     .name           = "tiertexseq",
-    .long_name      = NULL_IF_CONFIG_SMALL("Tiertex Limited SEQ"),
+    .long_name      = NULL_IF_CONFIG_SMALL("Tiertex Limited SEQ format"),
     .priv_data_size = sizeof(SeqDemuxContext),
     .read_probe     = seq_probe,
     .read_header    = seq_read_header,

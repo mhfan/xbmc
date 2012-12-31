@@ -19,16 +19,16 @@
 #ifndef MPLAYER_VF_SCALE_H
 #define MPLAYER_VF_SCALE_H
 
-extern int ff_sws_chr_vshift;
-extern int ff_sws_chr_hshift;
+extern int sws_chr_vshift;
+extern int sws_chr_hshift;
 
-extern float ff_sws_chr_gblur;
-extern float ff_sws_lum_gblur;
-extern float ff_sws_chr_sharpen;
-extern float ff_sws_lum_sharpen;
+extern float sws_chr_gblur;
+extern float sws_lum_gblur;
+extern float sws_chr_sharpen;
+extern float sws_lum_sharpen;
 
-extern int ff_sws_flags;
+extern int sws_flags;
 
-struct SwsContext *ff_sws_getContextFromCmdLine(int srcW, int srcH, int srcFormat, int dstW, int dstH, int dstFormat);
+struct SwsContext *sws_getContextFromCmdLine(int srcW, int srcH, int srcFormat, int dstW, int dstH, int dstFormat);
 
 #endif /* MPLAYER_VF_SCALE_H */

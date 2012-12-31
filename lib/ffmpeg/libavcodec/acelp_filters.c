@@ -22,8 +22,6 @@
 
 #include <inttypes.h>
 
-#include "libavutil/avassert.h"
-#include "libavutil/common.h"
 #include "avcodec.h"
 #include "acelp_filters.h"
 
@@ -47,7 +45,7 @@ void ff_acelp_interpolate(int16_t* out, const int16_t* in,
 {
     int n, i;
 
-    av_assert1(frac_pos >= 0 && frac_pos < precision);
+    assert(frac_pos >= 0 && frac_pos < precision);
 
     for (n = 0; n < length; n++) {
         int idx = 0;
@@ -145,11 +143,3 @@ void ff_tilt_compensation(float *mem, float tilt, float *samples, int size)
     *mem = new_tilt_mem;
 }
 
-void ff_acelp_filter_init(ACELPFContext *c)
-{
-    c->acelp_interpolatef                      = ff_acelp_interpolatef;
-    c->acelp_apply_order_2_transfer_function   = ff_acelp_apply_order_2_transfer_function;
-
-    if(HAVE_MIPSFPU)
-        ff_acelp_filter_init_mips(c);
-}

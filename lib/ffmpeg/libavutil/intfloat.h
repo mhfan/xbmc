@@ -39,8 +39,7 @@ union av_intfloat64 {
  */
 static av_always_inline float av_int2float(uint32_t i)
 {
-    union av_intfloat32 v;
-    v.i = i;
+    union av_intfloat32 v = { .i = i };
     return v.f;
 }
 
@@ -49,8 +48,7 @@ static av_always_inline float av_int2float(uint32_t i)
  */
 static av_always_inline uint32_t av_float2int(float f)
 {
-    union av_intfloat32 v;
-    v.f = f;
+    union av_intfloat32 v = { .f = f };
     return v.i;
 }
 
@@ -59,8 +57,7 @@ static av_always_inline uint32_t av_float2int(float f)
  */
 static av_always_inline double av_int2double(uint64_t i)
 {
-    union av_intfloat64 v;
-    v.i = i;
+    union av_intfloat64 v = { .i = i };
     return v.f;
 }
 
@@ -69,8 +66,7 @@ static av_always_inline double av_int2double(uint64_t i)
  */
 static av_always_inline uint64_t av_double2int(double f)
 {
-    union av_intfloat64 v;
-    v.f = f;
+    union av_intfloat64 v = { .f = f };
     return v.i;
 }
 

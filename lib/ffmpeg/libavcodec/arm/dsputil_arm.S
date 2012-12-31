@@ -20,9 +20,19 @@
 @
 
 #include "config.h"
-#include "libavutil/arm/asm.S"
+#include "asm.S"
 
-#if !HAVE_ARMV5TE_EXTERNAL
+        preserve8
+
+#if HAVE_ARMV5TE
+function ff_prefetch_arm, export=1
+        subs            r2,  r2,  #1
+        pld             [r0]
+        add             r0,  r0,  r1
+        bne             ff_prefetch_arm
+        bx              lr
+endfunc
+#else
 #define pld @
 #endif
 
@@ -622,7 +632,7 @@ function ff_add_pixels_clamped_arm, export=1
         ldrsh           r7,  [r0, #2]
         and             r6,  r4,  #0xFF
         and             r8,  r4,  #0xFF00
-        add             r6,  r6,  r5
+        add             r6,  r5,  r6
         add             r8,  r7,  r8,  lsr #8
         mvn             r5,  r5
         mvn             r7,  r7
@@ -664,7 +674,7 @@ function ff_add_pixels_clamped_arm, export=1
         ldrsh           r7,  [r0, #10]
         and             r6,  r4,  #0xFF
         and             r8,  r4,  #0xFF00
-        add             r6,  r6,  r5
+        add             r6,  r5,  r6
         add             r8,  r7,  r8,  lsr #8
         mvn             r5,  r5
         mvn             r7,  r7

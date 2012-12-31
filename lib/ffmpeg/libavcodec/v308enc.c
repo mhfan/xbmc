@@ -22,7 +22,6 @@
 
 #include "libavutil/intreadwrite.h"
 #include "avcodec.h"
-#include "internal.h"
 
 static av_cold int v308_encode_init(AVCodecContext *avctx)
 {
@@ -41,16 +40,19 @@ static av_cold int v308_encode_init(AVCodecContext *avctx)
     return 0;
 }
 
-static int v308_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
-                             const AVFrame *pic, int *got_packet)
+static int v308_encode_frame(AVCodecContext *avctx, uint8_t *buf,
+                             int buf_size, void *data)
 {
-    uint8_t *dst;
+    AVFrame *pic = data;
+    uint8_t *dst = buf;
     uint8_t *y, *u, *v;
-    int i, j, ret;
+    int i, j;
+    int output_size = 0;
 
-    if ((ret = ff_alloc_packet2(avctx, pkt, avctx->width * avctx->height * 3)) < 0)
-        return ret;
-    dst = pkt->data;
+    if (buf_size < avctx->width * avctx->height * 3) {
+        av_log(avctx, AV_LOG_ERROR, "Out buffer is too small.\n");
+        return AVERROR(ENOMEM);
+    }
 
     avctx->coded_frame->reference = 0;
     avctx->coded_frame->key_frame = 1;
@@ -65,15 +67,14 @@ static int v308_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
             *dst++ = v[j];
             *dst++ = y[j];
             *dst++ = u[j];
+            output_size += 3;
         }
         y += pic->linesize[0];
         u += pic->linesize[1];
         v += pic->linesize[2];
     }
 
-    pkt->flags |= AV_PKT_FLAG_KEY;
-    *got_packet = 1;
-    return 0;
+    return output_size;
 }
 
 static av_cold int v308_encode_close(AVCodecContext *avctx)
@@ -86,10 +87,10 @@ static av_cold int v308_encode_close(AVCodecContext *avctx)
 AVCodec ff_v308_encoder = {
     .name         = "v308",
     .type         = AVMEDIA_TYPE_VIDEO,
-    .id           = AV_CODEC_ID_V308,
+    .id           = CODEC_ID_V308,
     .init         = v308_encode_init,
-    .encode2      = v308_encode_frame,
+    .encode       = v308_encode_frame,
     .close        = v308_encode_close,
-    .pix_fmts     = (const enum AVPixelFormat[]){ AV_PIX_FMT_YUV444P, AV_PIX_FMT_NONE },
+    .pix_fmts     = (const enum PixelFormat[]){ PIX_FMT_YUV444P, PIX_FMT_NONE },
     .long_name    = NULL_IF_CONFIG_SMALL("Uncompressed packed 4:4:4"),
 };

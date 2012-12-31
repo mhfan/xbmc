@@ -19,25 +19,18 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <string.h>
-
 #include "avcodec.h"
 #include "ass.h"
 #include "ass_split.h"
-#include "libavutil/internal.h"
-#include "libavutil/mem.h"
 
 static av_cold int ass_decode_init(AVCodecContext *avctx)
 {
-    avctx->subtitle_header = av_malloc(avctx->extradata_size + 1);
-    if (!avctx->subtitle_header)
+    avctx->subtitle_header = av_malloc(avctx->extradata_size);
+    if (!avctx->extradata)
         return AVERROR(ENOMEM);
     memcpy(avctx->subtitle_header, avctx->extradata, avctx->extradata_size);
-    avctx->subtitle_header[avctx->extradata_size] = 0;
     avctx->subtitle_header_size = avctx->extradata_size;
     avctx->priv_data = ff_ass_split(avctx->extradata);
-    if(!avctx->priv_data)
-        return -1;
     return 0;
 }
 
@@ -48,11 +41,8 @@ static int ass_decode_frame(AVCodecContext *avctx, void *data, int *got_sub_ptr,
     int len, size = avpkt->size;
 
     while (size > 0) {
-        int duration;
         ASSDialog *dialog = ff_ass_split_dialog(avctx->priv_data, ptr, 0, NULL);
-        if (!dialog)
-            return AVERROR_INVALIDDATA;
-        duration = dialog->end - dialog->start;
+        int duration = dialog->end - dialog->start;
         len = ff_ass_add_rect(data, ptr, 0, duration, 1);
         if (len < 0)
             return len;
@@ -73,9 +63,9 @@ static int ass_decode_close(AVCodecContext *avctx)
 
 AVCodec ff_ass_decoder = {
     .name         = "ass",
-    .long_name    = NULL_IF_CONFIG_SMALL("SSA (SubStation Alpha) subtitle"),
+    .long_name    = NULL_IF_CONFIG_SMALL("Advanced SubStation Alpha subtitle"),
     .type         = AVMEDIA_TYPE_SUBTITLE,
-    .id           = AV_CODEC_ID_SSA,
+    .id           = CODEC_ID_SSA,
     .init         = ass_decode_init,
     .decode       = ass_decode_frame,
     .close        = ass_decode_close,

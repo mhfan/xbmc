@@ -21,27 +21,7 @@
  * null video filter
  */
 
-#include "libavutil/internal.h"
 #include "avfilter.h"
-#include "internal.h"
-#include "video.h"
-
-static const AVFilterPad avfilter_vf_null_inputs[] = {
-    {
-        .name             = "default",
-        .type             = AVMEDIA_TYPE_VIDEO,
-        .get_video_buffer = ff_null_get_video_buffer,
-    },
-    { NULL }
-};
-
-static const AVFilterPad avfilter_vf_null_outputs[] = {
-    {
-        .name = "default",
-        .type = AVMEDIA_TYPE_VIDEO,
-    },
-    { NULL }
-};
 
 AVFilter avfilter_vf_null = {
     .name      = "null",
@@ -49,7 +29,14 @@ AVFilter avfilter_vf_null = {
 
     .priv_size = 0,
 
-    .inputs    = avfilter_vf_null_inputs,
+    .inputs    = (const AVFilterPad[]) {{ .name       = "default",
+                                    .type             = AVMEDIA_TYPE_VIDEO,
+                                    .get_video_buffer = avfilter_null_get_video_buffer,
+                                    .start_frame      = avfilter_null_start_frame,
+                                    .end_frame        = avfilter_null_end_frame },
+                                  { .name = NULL}},
 
-    .outputs   = avfilter_vf_null_outputs,
+    .outputs   = (const AVFilterPad[]) {{ .name       = "default",
+                                    .type             = AVMEDIA_TYPE_VIDEO, },
+                                  { .name = NULL}},
 };

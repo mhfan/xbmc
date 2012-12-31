@@ -27,7 +27,6 @@
 #include <inttypes.h>
 
 #include "libavcodec/dsputil.h"
-#include "libavutil/mem.h"
 #include "dsputil_vis.h"
 
 #include "vis.h"
@@ -3950,7 +3949,7 @@ static int vis_level(void)
 }
 
 /* libavcodec initialization code */
-void ff_dsputil_init_vis(DSPContext* c, AVCodecContext *avctx)
+void dsputil_init_vis(DSPContext* c, AVCodecContext *avctx)
 {
   /* VIS-specific optimizations */
   int accel = vis_level ();

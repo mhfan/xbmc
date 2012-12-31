@@ -1,37 +1,21 @@
-# use pkg-config for getting CFLAGS and LDLIBS
-FFMPEG_LIBS=    libavdevice                        \
-                libavformat                        \
-                libavfilter                        \
-                libavcodec                         \
-                libswresample                      \
-                libswscale                         \
-                libavutil                          \
+# use pkg-config for getting CFLAGS abd LDFLAGS
+FFMPEG_LIBS=libavdevice libavformat libavfilter libavcodec libswscale libavutil
+CFLAGS+=$(shell pkg-config  --cflags $(FFMPEG_LIBS))
+LDFLAGS+=$(shell pkg-config --libs $(FFMPEG_LIBS))
 
-CFLAGS += -Wall -O2 -g
-CFLAGS := $(shell pkg-config --cflags $(FFMPEG_LIBS)) $(CFLAGS)
-LDLIBS := $(shell pkg-config --libs $(FFMPEG_LIBS)) $(LDLIBS)
-
-EXAMPLES=       decoding_encoding                  \
-                demuxing                           \
-                filtering_video                    \
-                filtering_audio                    \
-                metadata                           \
-                muxing                             \
-                resampling_audio                   \
-                scaling_video                      \
+EXAMPLES=decoding_encoding filtering metadata muxing
 
 OBJS=$(addsuffix .o,$(EXAMPLES))
 
-# the following examples make explicit use of the math library
-decoding_encoding: LDLIBS += -lm
-muxing:            LDLIBS += -lm
+%: %.o
+	$(CC) $< $(LDFLAGS) -o $@
 
-.phony: all clean-test clean
+%.o: %.c
+	$(CC) $< $(CFLAGS) -c -o $@
+
+.phony: all clean
 
 all: $(OBJS) $(EXAMPLES)
 
-clean-test:
-	$(RM) test*.pgm test.h264 test.mp2 test.sw test.mpg
-
-clean: clean-test
-	$(RM) $(EXAMPLES) $(OBJS)
+clean:
+	rm -rf $(EXAMPLES) $(OBJS)

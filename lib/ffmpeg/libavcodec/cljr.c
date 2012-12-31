@@ -27,7 +27,6 @@
 #include "avcodec.h"
 #include "libavutil/opt.h"
 #include "get_bits.h"
-#include "internal.h"
 #include "put_bits.h"
 
 typedef struct CLJRContext {
@@ -48,7 +47,7 @@ static av_cold int common_init(AVCodecContext *avctx)
 
 #if CONFIG_CLJR_DECODER
 static int decode_frame(AVCodecContext *avctx,
-                        void *data, int *got_frame,
+                        void *data, int *data_size,
                         AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
@@ -57,7 +56,7 @@ static int decode_frame(AVCodecContext *avctx,
     GetBitContext gb;
     AVFrame *picture = data;
     AVFrame * const p = &a->picture;
-    int x, y, ret;
+    int x, y;
 
     if (p->data[0])
         avctx->release_buffer(avctx, p);
@@ -74,9 +73,9 @@ static int decode_frame(AVCodecContext *avctx,
     }
 
     p->reference = 0;
-    if ((ret = ff_get_buffer(avctx, p)) < 0) {
+    if (avctx->get_buffer(avctx, p) < 0) {
         av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
-        return ret;
+        return -1;
     }
     p->pict_type = AV_PICTURE_TYPE_I;
     p->key_frame = 1;
@@ -99,14 +98,14 @@ static int decode_frame(AVCodecContext *avctx,
     }
 
     *picture   = a->picture;
-    *got_frame = 1;
+    *data_size = sizeof(AVPicture);
 
     return buf_size;
 }
 
 static av_cold int decode_init(AVCodecContext *avctx)
 {
-    avctx->pix_fmt = AV_PIX_FMT_YUV411P;
+    avctx->pix_fmt = PIX_FMT_YUV411P;
     return common_init(avctx);
 }
 
@@ -122,7 +121,7 @@ static av_cold int decode_end(AVCodecContext *avctx)
 AVCodec ff_cljr_decoder = {
     .name           = "cljr",
     .type           = AVMEDIA_TYPE_VIDEO,
-    .id             = AV_CODEC_ID_CLJR,
+    .id             = CODEC_ID_CLJR,
     .priv_data_size = sizeof(CLJRContext),
     .init           = decode_init,
     .close          = decode_end,
@@ -133,12 +132,13 @@ AVCodec ff_cljr_decoder = {
 #endif
 
 #if CONFIG_CLJR_ENCODER
-static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
-                        const AVFrame *p, int *got_packet)
+static int encode_frame(AVCodecContext *avctx, unsigned char *buf,
+                        int buf_size, void *data)
 {
     CLJRContext *a = avctx->priv_data;
     PutBitContext pb;
-    int x, y, ret;
+    AVFrame *p = data;
+    int x, y;
     uint32_t dither= avctx->frame_number;
     static const uint32_t ordered_dither[2][2] =
     {
@@ -146,13 +146,10 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
         { 0xCB2A0000, 0xCB250000 },
     };
 
-    if ((ret = ff_alloc_packet2(avctx, pkt, 32*avctx->height*avctx->width/4)) < 0)
-        return ret;
+    p->pict_type = AV_PICTURE_TYPE_I;
+    p->key_frame = 1;
 
-    avctx->coded_frame->pict_type = AV_PICTURE_TYPE_I;
-    avctx->coded_frame->key_frame = 1;
-
-    init_put_bits(&pb, pkt->data, pkt->size);
+    init_put_bits(&pb, buf, buf_size / 8);
 
     for (y = 0; y < avctx->height; y++) {
         uint8_t *luma = &p->data[0][y * p->linesize[0]];
@@ -176,16 +173,13 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
     flush_put_bits(&pb);
 
-    pkt->size   = put_bits_count(&pb) / 8;
-    pkt->flags |= AV_PKT_FLAG_KEY;
-    *got_packet = 1;
-    return 0;
+    return put_bits_count(&pb) / 8;
 }
 
 #define OFFSET(x) offsetof(CLJRContext, x)
 #define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
 static const AVOption options[] = {
-    { "dither_type",   "Dither type",   OFFSET(dither_type),        AV_OPT_TYPE_INT, { .i64=1 }, 0, 2, VE},
+    { "dither_type",   "Dither type",   OFFSET(dither_type),        AV_OPT_TYPE_INT, { .dbl=1 }, 0, 2, VE},
     { NULL },
 };
 
@@ -199,12 +193,12 @@ static const AVClass class = {
 AVCodec ff_cljr_encoder = {
     .name           = "cljr",
     .type           = AVMEDIA_TYPE_VIDEO,
-    .id             = AV_CODEC_ID_CLJR,
+    .id             = CODEC_ID_CLJR,
     .priv_data_size = sizeof(CLJRContext),
     .init           = common_init,
-    .encode2        = encode_frame,
-    .pix_fmts       = (const enum AVPixelFormat[]) { AV_PIX_FMT_YUV411P,
-                                                   AV_PIX_FMT_NONE },
+    .encode         = encode_frame,
+    .pix_fmts       = (const enum PixelFormat[]) { PIX_FMT_YUV411P,
+                                                   PIX_FMT_NONE },
     .long_name      = NULL_IF_CONFIG_SMALL("Cirrus Logic AccuPak"),
     .priv_class     = &class,
 };

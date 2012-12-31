@@ -26,7 +26,7 @@
 #include "get_bits.h"
 #include "put_bits.h"
 
-typedef struct MPEG4AudioConfig {
+typedef struct {
     int object_type;
     int sampling_index;
     int sample_rate;
@@ -40,7 +40,7 @@ typedef struct MPEG4AudioConfig {
     int ps;  ///< -1 implicit, 1 presence
 } MPEG4AudioConfig;
 
-extern av_export const int avpriv_mpeg4audio_sample_rates[16];
+extern const int avpriv_mpeg4audio_sample_rates[16];
 extern const uint8_t ff_mpeg4audio_channels[8];
 
 /**

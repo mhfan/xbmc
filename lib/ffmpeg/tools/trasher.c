@@ -21,8 +21,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
-#include <errno.h>
-#include <string.h>
 
 static uint32_t state;
 static uint32_t ran(void)
@@ -56,10 +54,7 @@ int main(int argc, char **argv)
     while (count--) {
         int burst = 1 + ran() * (uint64_t) (abs(maxburst) - 1) / UINT32_MAX;
         int pos   = ran() * (uint64_t) length / UINT32_MAX;
-        if (fseek(f, pos, SEEK_SET) < 0) {
-            fprintf(stderr, "seek failed\n");
-            return 1;
-        }
+        fseek(f, pos, SEEK_SET);
 
         if (maxburst < 0)
             burst = -maxburst;

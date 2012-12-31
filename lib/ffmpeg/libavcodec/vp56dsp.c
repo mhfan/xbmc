@@ -22,7 +22,6 @@
 #include <stdint.h>
 #include "avcodec.h"
 #include "vp56dsp.h"
-#include "libavutil/common.h"
 
 /* Gives very similar result than the vp6 version except in a few cases */
 static int vp5_adjust(int v, int t)
@@ -75,20 +74,20 @@ VP56_EDGE_FILTER(vp5, ver, stride, 1)
 VP56_EDGE_FILTER(vp6, hor, 1, stride)
 VP56_EDGE_FILTER(vp6, ver, stride, 1)
 
-void ff_vp56dsp_init(VP56DSPContext *s, enum AVCodecID codec)
+void ff_vp56dsp_init(VP56DSPContext *s, enum CodecID codec)
 {
-    if (codec == AV_CODEC_ID_VP5) {
+    if (codec == CODEC_ID_VP5) {
         s->edge_filter_hor = vp5_edge_filter_hor;
         s->edge_filter_ver = vp5_edge_filter_ver;
     } else {
         s->edge_filter_hor = vp6_edge_filter_hor;
         s->edge_filter_ver = vp6_edge_filter_ver;
 
-	if (CONFIG_VP6_DECODER || CONFIG_VP6A_DECODER || CONFIG_VP6F_DECODER) {
+        if (CONFIG_VP6_DECODER) {
             s->vp6_filter_diag4 = ff_vp6_filter_diag4_c;
         }
     }
 
     if (ARCH_ARM) ff_vp56dsp_init_arm(s, codec);
-    if (ARCH_X86) ff_vp56dsp_init_x86(s, codec);
+    if (HAVE_MMX) ff_vp56dsp_init_x86(s, codec);
 }

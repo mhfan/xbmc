@@ -26,7 +26,6 @@
 
 #include "iirfilter.h"
 #include <math.h>
-#include "libavutil/common.h"
 
 /**
  * IIR filter global parameters
@@ -312,6 +311,7 @@ av_cold void ff_iir_filter_free_coeffs(struct FFIIRFilterCoeffs *coeffs)
 }
 
 #ifdef TEST
+#undef printf
 #include <stdio.h>
 
 #define FILT_ORDER 4

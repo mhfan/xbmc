@@ -5,16 +5,12 @@ NAME = avutil
 HEADERS = adler32.h                                                     \
           aes.h                                                         \
           attributes.h                                                  \
-          audio_fifo.h                                                  \
           audioconvert.h                                                \
           avassert.h                                                    \
           avstring.h                                                    \
           avutil.h                                                      \
           base64.h                                                      \
-          blowfish.h                                                    \
-          bprint.h                                                      \
           bswap.h                                                       \
-          channel_layout.h                                              \
           common.h                                                      \
           cpu.h                                                         \
           crc.h                                                         \
@@ -28,11 +24,11 @@ HEADERS = adler32.h                                                     \
           intreadwrite.h                                                \
           lfg.h                                                         \
           log.h                                                         \
+          lzo.h                                                         \
           mathematics.h                                                 \
           md5.h                                                         \
           mem.h                                                         \
           dict.h                                                        \
-          old_pix_fmts.h                                                \
           opt.h                                                         \
           parseutils.h                                                  \
           pixdesc.h                                                     \
@@ -41,29 +37,14 @@ HEADERS = adler32.h                                                     \
           rational.h                                                    \
           samplefmt.h                                                   \
           sha.h                                                         \
-          time.h                                                        \
-          timecode.h                                                    \
-          timestamp.h                                                   \
-          version.h                                                     \
-          xtea.h                                                        \
-
-HEADERS-$(CONFIG_LZO)                   += lzo.h
-
-ARCH_HEADERS = bswap.h                                                  \
-               intmath.h                                                \
-               intreadwrite.h                                           \
-               timer.h                                                  \
 
 BUILT_HEADERS = avconfig.h
 
 OBJS = adler32.o                                                        \
        aes.o                                                            \
-       audio_fifo.o                                                     \
+       audioconvert.o                                                   \
        avstring.o                                                       \
        base64.o                                                         \
-       blowfish.o                                                       \
-       bprint.o                                                         \
-       channel_layout.o                                                 \
        cpu.o                                                            \
        crc.o                                                            \
        des.o                                                            \
@@ -71,14 +52,13 @@ OBJS = adler32.o                                                        \
        eval.o                                                           \
        fifo.o                                                           \
        file.o                                                           \
-       float_dsp.o                                                      \
        imgutils.o                                                       \
        intfloat_readwrite.o                                             \
-       intmath.o                                                        \
+       inverse.o                                                        \
        lfg.o                                                            \
        lls.o                                                            \
        log.o                                                            \
-       log2_tab.o                                                       \
+       lzo.o                                                            \
        mathematics.o                                                    \
        md5.o                                                            \
        mem.o                                                            \
@@ -91,46 +71,22 @@ OBJS = adler32.o                                                        \
        rc4.o                                                            \
        samplefmt.o                                                      \
        sha.o                                                            \
-       time.o                                                           \
-       timecode.o                                                       \
        tree.o                                                           \
        utils.o                                                          \
-       xga_font_data.o                                                  \
-       xtea.o                                                           \
 
-OBJS-$(CONFIG_LZO)                      += lzo.o
+OBJS-$(ARCH_ARM) += arm/cpu.o
+OBJS-$(ARCH_PPC) += ppc/cpu.o
+OBJS-$(ARCH_X86) += x86/cpu.o
 
-OBJS += $(COMPAT_OBJS:%=../compat/%)
 
-SKIPHEADERS          = old_pix_fmts.h
-
-TESTPROGS = adler32                                                     \
-            aes                                                         \
-            avstring                                                    \
-            base64                                                      \
-            blowfish                                                    \
-            bprint                                                      \
-            cpu                                                         \
-            crc                                                         \
-            des                                                         \
-            error                                                       \
-            eval                                                        \
-            file                                                        \
-            fifo                                                        \
-            lfg                                                         \
-            lls                                                         \
-            md5                                                         \
-            opt                                                         \
-            pca                                                         \
-            parseutils                                                  \
-            random_seed                                                 \
-            rational                                                    \
-            sha                                                         \
-            tree                                                        \
-            xtea                                                        \
-
+TESTPROGS = adler32 aes avstring base64 cpu crc des eval file fifo lfg lls \
+            md5 opt pca parseutils rational sha tree
 TESTPROGS-$(HAVE_LZO1X_999_COMPRESS) += lzo
 
-TOOLS = ffeval ffescape
+TOOLS = ffeval
+
+DIRS = arm bfin sh4 x86
+
+ARCH_HEADERS = bswap.h intmath.h intreadwrite.h timer.h
 
 $(SUBDIR)lzo-test$(EXESUF): ELIBS = -llzo2

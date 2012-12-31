@@ -3,16 +3,8 @@ include $(SUBDIR)../config.mak
 NAME = swresample
 FFLIBS = avutil
 
-HEADERS = swresample.h                       \
-          version.h                          \
+HEADERS = swresample.h
 
-OBJS = audioconvert.o                        \
-       dither.o                              \
-       log2_tab.o                            \
-       rematrix.o                            \
-       resample.o                            \
-       swresample.o                          \
+OBJS = swresample.o audioconvert.o resample.o rematrix.o
 
-OBJS-$(CONFIG_LIBSOXR) += soxr_resample.o
-
-TESTPROGS = swresample
+TESTPROGS = swresample_test

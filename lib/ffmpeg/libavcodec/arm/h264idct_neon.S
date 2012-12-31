@@ -18,7 +18,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/arm/asm.S"
+#include "asm.S"
+
+        preserve8
 
 function ff_h264_idct_add_neon, export=1
         vld1.64         {d0-d3},  [r1,:128]

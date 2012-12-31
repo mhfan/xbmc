@@ -20,14 +20,14 @@
 ;* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 ;******************************************************************************
 
+%include "libavutil/x86/x86inc.asm"
 %include "libavutil/x86/x86util.asm"
 
 cextern pw_64
 
 SECTION .text
 
-%macro DIAG4 6
-%if mmsize == 8
+%macro DIAG4_MMX 6
     movq          m0, [%1+%2]
     movq          m1, [%1+%3]
     movq          m3, m0
@@ -64,7 +64,9 @@ SECTION .text
     psraw         m3, 7
     packuswb      m0, m3
     movq        [%6], m0
-%else ; mmsize == 16
+%endmacro
+
+%macro DIAG4_SSE2 6
     movq          m0, [%1+%2]
     movq          m1, [%1+%3]
     punpcklbw     m0, m7
@@ -84,11 +86,9 @@ SECTION .text
     psraw         m0, 7
     packuswb      m0, m0
     movq        [%6], m0
-%endif ; mmsize == 8/16
 %endmacro
 
-%macro SPLAT4REGS 0
-%if mmsize == 8
+%macro SPLAT4REGS_MMX 0
     movq         m5, m3
     punpcklwd    m3, m3
     movq         m4, m3
@@ -102,7 +102,9 @@ SECTION .text
     movq [rsp+8*12], m4
     movq [rsp+8*13], m5
     movq [rsp+8*14], m2
-%else ; mmsize == 16
+%endmacro
+
+%macro SPLAT4REGS_SSE2 0
     pshuflw      m4, m3, 0x0
     pshuflw      m5, m3, 0x55
     pshuflw      m6, m3, 0xAA
@@ -111,22 +113,21 @@ SECTION .text
     punpcklqdq   m5, m5
     punpcklqdq   m6, m6
     punpcklqdq   m3, m3
-%endif ; mmsize == 8/16
 %endmacro
 
-%macro vp6_filter_diag4 0
+%macro vp6_filter_diag4 2
 ; void ff_vp6_filter_diag4_<opt>(uint8_t *dst, uint8_t *src, int stride,
 ;                                const int16_t h_weight[4], const int16_t v_weights[4])
-cglobal vp6_filter_diag4, 5, 7, 8
+cglobal vp6_filter_diag4_%1, 5, 7, %2
     mov          r5, rsp         ; backup stack pointer
     and         rsp, ~(mmsize-1) ; align stack
-%if mmsize == 16
+%ifidn %1, sse2
     sub         rsp, 8*11
 %else
     sub         rsp, 8*15
     movq         m6, [pw_64]
 %endif
-%if ARCH_X86_64
+%ifdef ARCH_X86_64
     movsxd       r2, r2d
 %endif
 
@@ -138,7 +139,7 @@ cglobal vp6_filter_diag4, 5, 7, 8
 
     mov          r3, rsp
     mov          r6, 11
-.nextrow:
+.nextrow
     DIAG4        r1, -1, 0, 1, 2, r3
     add          r3, 8
     add          r1, r2
@@ -150,7 +151,7 @@ cglobal vp6_filter_diag4, 5, 7, 8
 
     lea          r3, [rsp+8]
     mov          r6, 8
-.nextcol:
+.nextcol
     DIAG4        r3, -8, 0, 8, 16, r0
     add          r3, 8
     add          r0, r2
@@ -161,10 +162,12 @@ cglobal vp6_filter_diag4, 5, 7, 8
     RET
 %endmacro
 
-%if ARCH_X86_32
-INIT_MMX mmx
-vp6_filter_diag4
-%endif
+INIT_MMX
+%define DIAG4      DIAG4_MMX
+%define SPLAT4REGS SPLAT4REGS_MMX
+vp6_filter_diag4 mmx,  0
 
-INIT_XMM sse2
-vp6_filter_diag4
+INIT_XMM
+%define DIAG4      DIAG4_SSE2
+%define SPLAT4REGS SPLAT4REGS_SSE2
+vp6_filter_diag4 sse2, 8

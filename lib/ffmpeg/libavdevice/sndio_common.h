@@ -28,10 +28,10 @@
 #include "libavutil/log.h"
 #include "avdevice.h"
 
-typedef struct SndioData {
+typedef struct {
     AVClass *class;
     struct sio_hdl *hdl;
-    enum AVCodecID codec_id;
+    enum CodecID codec_id;
     int64_t hwpos;
     int64_t softpos;
     uint8_t *buffer;

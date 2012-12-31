@@ -25,7 +25,6 @@
  * @author Michael Niedermayer <michaelni@gmx.at>
  */
 
-#include "libavutil/avassert.h"
 #include "h264pred.h"
 
 #define BIT_DEPTH 8
@@ -40,17 +39,7 @@
 #include "h264pred_template.c"
 #undef BIT_DEPTH
 
-#define BIT_DEPTH 12
-#include "h264pred_template.c"
-#undef BIT_DEPTH
-
-#define BIT_DEPTH 14
-#include "h264pred_template.c"
-#undef BIT_DEPTH
-
-static void pred4x4_vertical_vp8_c(uint8_t *src, const uint8_t *topright,
-                                   ptrdiff_t stride)
-{
+static void pred4x4_vertical_vp8_c(uint8_t *src, const uint8_t *topright, int stride){
     const unsigned lt = src[-1-1*stride];
     LOAD_TOP_EDGE
     LOAD_TOP_RIGHT_EDGE
@@ -65,9 +54,7 @@ static void pred4x4_vertical_vp8_c(uint8_t *src, const uint8_t *topright,
     AV_WN32A(src+3*stride, v);
 }
 
-static void pred4x4_horizontal_vp8_c(uint8_t *src, const uint8_t *topright,
-                                     ptrdiff_t stride)
-{
+static void pred4x4_horizontal_vp8_c(uint8_t *src, const uint8_t *topright, int stride){
     const unsigned lt = src[-1-1*stride];
     LOAD_LEFT_EDGE
 
@@ -77,9 +64,7 @@ static void pred4x4_horizontal_vp8_c(uint8_t *src, const uint8_t *topright,
     AV_WN32A(src+3*stride, ((l2 + 2*l3 + l3 + 2) >> 2)*0x01010101);
 }
 
-static void pred4x4_down_left_svq3_c(uint8_t *src, const uint8_t *topright,
-                                     ptrdiff_t stride)
-{
+static void pred4x4_down_left_svq3_c(uint8_t *src, const uint8_t *topright, int stride){
     LOAD_TOP_EDGE
     LOAD_LEFT_EDGE
 
@@ -101,9 +86,7 @@ static void pred4x4_down_left_svq3_c(uint8_t *src, const uint8_t *topright,
     src[3+3*stride]=(l3 + t3)>>1;
 }
 
-static void pred4x4_down_left_rv40_c(uint8_t *src, const uint8_t *topright,
-                                     ptrdiff_t stride)
-{
+static void pred4x4_down_left_rv40_c(uint8_t *src, const uint8_t *topright, int stride){
     LOAD_TOP_EDGE
     LOAD_TOP_RIGHT_EDGE
     LOAD_LEFT_EDGE
@@ -127,10 +110,7 @@ static void pred4x4_down_left_rv40_c(uint8_t *src, const uint8_t *topright,
     src[3+3*stride]=(t6 + t7 + 1 + l6 + l7 + 1)>>2;
 }
 
-static void pred4x4_down_left_rv40_nodown_c(uint8_t *src,
-                                            const uint8_t *topright,
-                                            ptrdiff_t stride)
-{
+static void pred4x4_down_left_rv40_nodown_c(uint8_t *src, const uint8_t *topright, int stride){
     LOAD_TOP_EDGE
     LOAD_TOP_RIGHT_EDGE
     LOAD_LEFT_EDGE
@@ -153,11 +133,8 @@ static void pred4x4_down_left_rv40_nodown_c(uint8_t *src,
     src[3+3*stride]=(t6 + t7 + 1 + 2*l3 + 1)>>2;
 }
 
-static void pred4x4_vertical_left_rv40(uint8_t *src, const uint8_t *topright,
-                                       ptrdiff_t stride,
-                                       const int l0, const int l1, const int l2,
-                                       const int l3, const int l4)
-{
+static void pred4x4_vertical_left_rv40(uint8_t *src, const uint8_t *topright, int stride,
+                                       const int l0, const int l1, const int l2, const int l3, const int l4){
     LOAD_TOP_EDGE
     LOAD_TOP_RIGHT_EDGE
 
@@ -179,27 +156,20 @@ static void pred4x4_vertical_left_rv40(uint8_t *src, const uint8_t *topright,
     src[3+3*stride]=(t4 + 2*t5 + t6 + 2)>>2;
 }
 
-static void pred4x4_vertical_left_rv40_c(uint8_t *src, const uint8_t *topright,
-                                         ptrdiff_t stride)
-{
+static void pred4x4_vertical_left_rv40_c(uint8_t *src, const uint8_t *topright, int stride){
     LOAD_LEFT_EDGE
     LOAD_DOWN_LEFT_EDGE
 
     pred4x4_vertical_left_rv40(src, topright, stride, l0, l1, l2, l3, l4);
 }
 
-static void pred4x4_vertical_left_rv40_nodown_c(uint8_t *src,
-                                                const uint8_t *topright,
-                                                ptrdiff_t stride)
-{
+static void pred4x4_vertical_left_rv40_nodown_c(uint8_t *src, const uint8_t *topright, int stride){
     LOAD_LEFT_EDGE
 
     pred4x4_vertical_left_rv40(src, topright, stride, l0, l1, l2, l3, l3);
 }
 
-static void pred4x4_vertical_left_vp8_c(uint8_t *src, const uint8_t *topright,
-                                        ptrdiff_t stride)
-{
+static void pred4x4_vertical_left_vp8_c(uint8_t *src, const uint8_t *topright, int stride){
     LOAD_TOP_EDGE
     LOAD_TOP_RIGHT_EDGE
 
@@ -221,9 +191,7 @@ static void pred4x4_vertical_left_vp8_c(uint8_t *src, const uint8_t *topright,
     src[3+3*stride]=(t5 + 2*t6 + t7 + 2)>>2;
 }
 
-static void pred4x4_horizontal_up_rv40_c(uint8_t *src, const uint8_t *topright,
-                                         ptrdiff_t stride)
-{
+static void pred4x4_horizontal_up_rv40_c(uint8_t *src, const uint8_t *topright, int stride){
     LOAD_LEFT_EDGE
     LOAD_DOWN_LEFT_EDGE
     LOAD_TOP_EDGE
@@ -247,10 +215,7 @@ static void pred4x4_horizontal_up_rv40_c(uint8_t *src, const uint8_t *topright,
     src[3+3*stride]=(l4 + 2*l5 + l6 + 2)>>2;
 }
 
-static void pred4x4_horizontal_up_rv40_nodown_c(uint8_t *src,
-                                                const uint8_t *topright,
-                                                ptrdiff_t stride)
-{
+static void pred4x4_horizontal_up_rv40_nodown_c(uint8_t *src, const uint8_t *topright, int stride){
     LOAD_LEFT_EDGE
     LOAD_TOP_EDGE
     LOAD_TOP_RIGHT_EDGE
@@ -273,9 +238,7 @@ static void pred4x4_horizontal_up_rv40_nodown_c(uint8_t *src,
     src[3+3*stride]=l3;
 }
 
-static void pred4x4_tm_vp8_c(uint8_t *src, const uint8_t *topright,
-                             ptrdiff_t stride)
-{
+static void pred4x4_tm_vp8_c(uint8_t *src, const uint8_t *topright, int stride){
     uint8_t *cm = ff_cropTbl + MAX_NEG_CROP - src[-1-stride];
     uint8_t *top = src-stride;
     int y;
@@ -290,18 +253,15 @@ static void pred4x4_tm_vp8_c(uint8_t *src, const uint8_t *topright,
     }
 }
 
-static void pred16x16_plane_svq3_c(uint8_t *src, ptrdiff_t stride)
-{
+static void pred16x16_plane_svq3_c(uint8_t *src, int stride){
     pred16x16_plane_compat_8_c(src, stride, 1, 0);
 }
 
-static void pred16x16_plane_rv40_c(uint8_t *src, ptrdiff_t stride)
-{
+static void pred16x16_plane_rv40_c(uint8_t *src, int stride){
     pred16x16_plane_compat_8_c(src, stride, 0, 1);
 }
 
-static void pred16x16_tm_vp8_c(uint8_t *src, ptrdiff_t stride)
-{
+static void pred16x16_tm_vp8_c(uint8_t *src, int stride){
     uint8_t *cm = ff_cropTbl + MAX_NEG_CROP - src[-1-stride];
     uint8_t *top = src-stride;
     int y;
@@ -328,8 +288,7 @@ static void pred16x16_tm_vp8_c(uint8_t *src, ptrdiff_t stride)
     }
 }
 
-static void pred8x8_left_dc_rv40_c(uint8_t *src, ptrdiff_t stride)
-{
+static void pred8x8_left_dc_rv40_c(uint8_t *src, int stride){
     int i;
     unsigned dc0;
 
@@ -344,8 +303,7 @@ static void pred8x8_left_dc_rv40_c(uint8_t *src, ptrdiff_t stride)
     }
 }
 
-static void pred8x8_top_dc_rv40_c(uint8_t *src, ptrdiff_t stride)
-{
+static void pred8x8_top_dc_rv40_c(uint8_t *src, int stride){
     int i;
     unsigned dc0;
 
@@ -360,8 +318,7 @@ static void pred8x8_top_dc_rv40_c(uint8_t *src, ptrdiff_t stride)
     }
 }
 
-static void pred8x8_dc_rv40_c(uint8_t *src, ptrdiff_t stride)
-{
+static void pred8x8_dc_rv40_c(uint8_t *src, int stride){
     int i;
     unsigned dc0 = 0;
 
@@ -382,8 +339,7 @@ static void pred8x8_dc_rv40_c(uint8_t *src, ptrdiff_t stride)
     }
 }
 
-static void pred8x8_tm_vp8_c(uint8_t *src, ptrdiff_t stride)
-{
+static void pred8x8_tm_vp8_c(uint8_t *src, int stride){
     uint8_t *cm = ff_cropTbl + MAX_NEG_CROP - src[-1-stride];
     uint8_t *top = src-stride;
     int y;
@@ -405,9 +361,7 @@ static void pred8x8_tm_vp8_c(uint8_t *src, ptrdiff_t stride)
 /**
  * Set the intra prediction function pointers.
  */
-void ff_h264_pred_init(H264PredContext *h, int codec_id, const int bit_depth,
-                       int chroma_format_idc)
-{
+void ff_h264_pred_init(H264PredContext *h, int codec_id, const int bit_depth, const int chroma_format_idc){
 //    MpegEncContext * const s = &h->s;
 
 #undef FUNC
@@ -417,8 +371,8 @@ void ff_h264_pred_init(H264PredContext *h, int codec_id, const int bit_depth,
 #define FUNCD(a) a ## _c
 
 #define H264_PRED(depth) \
-    if(codec_id != AV_CODEC_ID_RV40){\
-        if(codec_id == AV_CODEC_ID_VP8) {\
+    if(codec_id != CODEC_ID_RV40){\
+        if(codec_id == CODEC_ID_VP8) {\
             h->pred4x4[VERT_PRED       ]= FUNCD(pred4x4_vertical_vp8);\
             h->pred4x4[HOR_PRED        ]= FUNCD(pred4x4_horizontal_vp8);\
         } else {\
@@ -426,19 +380,19 @@ void ff_h264_pred_init(H264PredContext *h, int codec_id, const int bit_depth,
             h->pred4x4[HOR_PRED        ]= FUNCC(pred4x4_horizontal        , depth);\
         }\
         h->pred4x4[DC_PRED             ]= FUNCC(pred4x4_dc                , depth);\
-        if(codec_id == AV_CODEC_ID_SVQ3)\
+        if(codec_id == CODEC_ID_SVQ3)\
             h->pred4x4[DIAG_DOWN_LEFT_PRED ]= FUNCD(pred4x4_down_left_svq3);\
         else\
             h->pred4x4[DIAG_DOWN_LEFT_PRED ]= FUNCC(pred4x4_down_left     , depth);\
         h->pred4x4[DIAG_DOWN_RIGHT_PRED]= FUNCC(pred4x4_down_right        , depth);\
         h->pred4x4[VERT_RIGHT_PRED     ]= FUNCC(pred4x4_vertical_right    , depth);\
         h->pred4x4[HOR_DOWN_PRED       ]= FUNCC(pred4x4_horizontal_down   , depth);\
-        if (codec_id == AV_CODEC_ID_VP8) {\
+        if (codec_id == CODEC_ID_VP8) {\
             h->pred4x4[VERT_LEFT_PRED  ]= FUNCD(pred4x4_vertical_left_vp8);\
         } else\
             h->pred4x4[VERT_LEFT_PRED  ]= FUNCC(pred4x4_vertical_left     , depth);\
         h->pred4x4[HOR_UP_PRED         ]= FUNCC(pred4x4_horizontal_up     , depth);\
-        if(codec_id != AV_CODEC_ID_VP8) {\
+        if(codec_id != CODEC_ID_VP8) {\
             h->pred4x4[LEFT_DC_PRED    ]= FUNCC(pred4x4_left_dc           , depth);\
             h->pred4x4[TOP_DC_PRED     ]= FUNCC(pred4x4_top_dc            , depth);\
             h->pred4x4[DC_128_PRED     ]= FUNCC(pred4x4_128_dc            , depth);\
@@ -487,7 +441,7 @@ void ff_h264_pred_init(H264PredContext *h, int codec_id, const int bit_depth,
         h->pred8x8[VERT_PRED8x8   ]= FUNCC(pred8x16_vertical              , depth);\
         h->pred8x8[HOR_PRED8x8    ]= FUNCC(pred8x16_horizontal            , depth);\
     }\
-    if (codec_id != AV_CODEC_ID_VP8) {\
+    if (codec_id != CODEC_ID_VP8) {\
         if (chroma_format_idc == 1) {\
             h->pred8x8[PLANE_PRED8x8]= FUNCC(pred8x8_plane                , depth);\
         } else {\
@@ -495,7 +449,7 @@ void ff_h264_pred_init(H264PredContext *h, int codec_id, const int bit_depth,
         }\
     } else\
         h->pred8x8[PLANE_PRED8x8]= FUNCD(pred8x8_tm_vp8);\
-    if(codec_id != AV_CODEC_ID_RV40 && codec_id != AV_CODEC_ID_VP8){\
+    if(codec_id != CODEC_ID_RV40 && codec_id != CODEC_ID_VP8){\
         if (chroma_format_idc == 1) {\
             h->pred8x8[DC_PRED8x8     ]= FUNCC(pred8x8_dc                     , depth);\
             h->pred8x8[LEFT_DC_PRED8x8]= FUNCC(pred8x8_left_dc                , depth);\
@@ -517,7 +471,7 @@ void ff_h264_pred_init(H264PredContext *h, int codec_id, const int bit_depth,
         h->pred8x8[DC_PRED8x8     ]= FUNCD(pred8x8_dc_rv40);\
         h->pred8x8[LEFT_DC_PRED8x8]= FUNCD(pred8x8_left_dc_rv40);\
         h->pred8x8[TOP_DC_PRED8x8 ]= FUNCD(pred8x8_top_dc_rv40);\
-        if (codec_id == AV_CODEC_ID_VP8) {\
+        if (codec_id == CODEC_ID_VP8) {\
             h->pred8x8[DC_127_PRED8x8]= FUNCC(pred8x8_127_dc              , depth);\
             h->pred8x8[DC_129_PRED8x8]= FUNCC(pred8x8_129_dc              , depth);\
         }\
@@ -532,13 +486,13 @@ void ff_h264_pred_init(H264PredContext *h, int codec_id, const int bit_depth,
     h->pred16x16[VERT_PRED8x8   ]= FUNCC(pred16x16_vertical               , depth);\
     h->pred16x16[HOR_PRED8x8    ]= FUNCC(pred16x16_horizontal             , depth);\
     switch(codec_id){\
-    case AV_CODEC_ID_SVQ3:\
+    case CODEC_ID_SVQ3:\
        h->pred16x16[PLANE_PRED8x8  ]= FUNCD(pred16x16_plane_svq3);\
        break;\
-    case AV_CODEC_ID_RV40:\
+    case CODEC_ID_RV40:\
        h->pred16x16[PLANE_PRED8x8  ]= FUNCD(pred16x16_plane_rv40);\
        break;\
-    case AV_CODEC_ID_VP8:\
+    case CODEC_ID_VP8:\
        h->pred16x16[PLANE_PRED8x8  ]= FUNCD(pred16x16_tm_vp8);\
        h->pred16x16[DC_127_PRED8x8]= FUNCC(pred16x16_127_dc               , depth);\
        h->pred16x16[DC_129_PRED8x8]= FUNCC(pred16x16_129_dc               , depth);\
@@ -566,9 +520,6 @@ void ff_h264_pred_init(H264PredContext *h, int codec_id, const int bit_depth,
     h->pred16x16_add[VERT_PRED8x8]= FUNCC(pred16x16_vertical_add          , depth);\
     h->pred16x16_add[ HOR_PRED8x8]= FUNCC(pred16x16_horizontal_add        , depth);\
 
-    if(!chroma_format_idc)
-        chroma_format_idc = 1;
-
     switch (bit_depth) {
         case 9:
             H264_PRED(9)
@@ -576,18 +527,11 @@ void ff_h264_pred_init(H264PredContext *h, int codec_id, const int bit_depth,
         case 10:
             H264_PRED(10)
             break;
-        case 12:
-            H264_PRED(12)
-            break;
-        case 14:
-            H264_PRED(14)
-            break;
         default:
-            av_assert0(bit_depth<=8);
             H264_PRED(8)
             break;
     }
 
     if (ARCH_ARM) ff_h264_pred_init_arm(h, codec_id, bit_depth, chroma_format_idc);
-    if (ARCH_X86) ff_h264_pred_init_x86(h, codec_id, bit_depth, chroma_format_idc);
+    if (HAVE_MMX) ff_h264_pred_init_x86(h, codec_id, bit_depth, chroma_format_idc);
 }

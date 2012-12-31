@@ -18,7 +18,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/arm/cpu.h"
 #include "libavcodec/fft.h"
 #include "libavcodec/rdft.h"
 #include "libavcodec/synth_filter.h"
@@ -40,9 +39,7 @@ void ff_synth_filter_float_neon(FFTContext *imdct,
 
 av_cold void ff_fft_init_arm(FFTContext *s)
 {
-    int cpu_flags = av_get_cpu_flags();
-
-    if (have_neon(cpu_flags)) {
+    if (HAVE_NEON) {
         s->fft_permute  = ff_fft_permute_neon;
         s->fft_calc     = ff_fft_calc_neon;
 #if CONFIG_MDCT
@@ -57,9 +54,7 @@ av_cold void ff_fft_init_arm(FFTContext *s)
 #if CONFIG_RDFT
 av_cold void ff_rdft_init_arm(RDFTContext *s)
 {
-    int cpu_flags = av_get_cpu_flags();
-
-    if (have_neon(cpu_flags))
+    if (HAVE_NEON)
         s->rdft_calc    = ff_rdft_calc_neon;
 }
 #endif
@@ -67,9 +62,7 @@ av_cold void ff_rdft_init_arm(RDFTContext *s)
 #if CONFIG_DCA_DECODER
 av_cold void ff_synth_filter_init_arm(SynthFilterContext *s)
 {
-    int cpu_flags = av_get_cpu_flags();
-
-    if (have_neon(cpu_flags))
+    if (HAVE_NEON)
         s->synth_filter_float = ff_synth_filter_float_neon;
 }
 #endif

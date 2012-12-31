@@ -1,4 +1,4 @@
 LIBSWSCALE_$MAJOR {
-        global: swscale_*; sws_*; /* XXX: palette8to*; rgb*to*; y*toy*; */
+        global: swscale_*; sws_*; ff_*;
         local: *;
 };

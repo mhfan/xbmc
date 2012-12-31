@@ -19,6 +19,7 @@
 ;* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 ;******************************************************************************
 
+%include "libavutil/x86/x86inc.asm"
 %include "libavutil/x86/x86util.asm"
 
 SECTION_RODATA
@@ -41,8 +42,8 @@ SECTION .text
 ; void ff_ac3_exponent_min(uint8_t *exp, int num_reuse_blocks, int nb_coefs)
 ;-----------------------------------------------------------------------------
 
-%macro AC3_EXPONENT_MIN 0
-cglobal ac3_exponent_min, 3, 4, 2, exp, reuse_blks, expn, offset
+%macro AC3_EXPONENT_MIN 1
+cglobal ac3_exponent_min_%1, 3,4,2, exp, reuse_blks, expn, offset
     shl  reuse_blksq, 8
     jz .end
     LOOP_ALIGN
@@ -63,18 +64,20 @@ cglobal ac3_exponent_min, 3, 4, 2, exp, reuse_blks, expn, offset
     REP_RET
 %endmacro
 
+%define PMINUB PMINUB_MMX
 %define LOOP_ALIGN
-INIT_MMX mmx
-AC3_EXPONENT_MIN
-%if HAVE_MMXEXT_EXTERNAL
+INIT_MMX
+AC3_EXPONENT_MIN mmx
+%ifdef HAVE_MMX2
+%define PMINUB PMINUB_MMXEXT
 %define LOOP_ALIGN ALIGN 16
-INIT_MMX mmxext
-AC3_EXPONENT_MIN
+AC3_EXPONENT_MIN mmxext
 %endif
-%if HAVE_SSE2_EXTERNAL
-INIT_XMM sse2
-AC3_EXPONENT_MIN
+%ifdef HAVE_SSE
+INIT_XMM
+AC3_EXPONENT_MIN sse2
 %endif
+%undef PMINUB
 %undef LOOP_ALIGN
 
 ;-----------------------------------------------------------------------------
@@ -88,36 +91,12 @@ AC3_EXPONENT_MIN
 ;        This is used for mmxext and sse2 because they have pminsw/pmaxsw.
 ;-----------------------------------------------------------------------------
 
-; logical 'or' of 4 or 8 words in an mmx or xmm register into the low word
-%macro OR_WORDS_HORIZ 2 ; src, tmp
-%if cpuflag(sse2)
-    movhlps     %2, %1
-    por         %1, %2
-    pshuflw     %2, %1, q0032
-    por         %1, %2
-    pshuflw     %2, %1, q0001
-    por         %1, %2
-%elif cpuflag(mmxext)
-    pshufw      %2, %1, q0032
-    por         %1, %2
-    pshufw      %2, %1, q0001
-    por         %1, %2
-%else ; mmx
-    movq        %2, %1
-    psrlq       %2, 32
-    por         %1, %2
-    movq        %2, %1
-    psrlq       %2, 16
-    por         %1, %2
-%endif
-%endmacro
-
-%macro AC3_MAX_MSB_ABS_INT16 1
-cglobal ac3_max_msb_abs_int16, 2,2,5, src, len
+%macro AC3_MAX_MSB_ABS_INT16 2
+cglobal ac3_max_msb_abs_int16_%1, 2,2,5, src, len
     pxor        m2, m2
     pxor        m3, m3
 .loop:
-%ifidn %1, min_max
+%ifidn %2, min_max
     mova        m0, [srcq]
     mova        m1, [srcq+mmsize]
     pminsw      m2, m0
@@ -125,7 +104,7 @@ cglobal ac3_max_msb_abs_int16, 2,2,5, src, len
     pmaxsw      m3, m0
     pmaxsw      m3, m1
 %else ; or_abs
-%if notcpuflag(ssse3)
+%ifidn %1, mmx
     mova        m0, [srcq]
     mova        m1, [srcq+mmsize]
     ABS2        m0, m1, m3, m4
@@ -140,34 +119,41 @@ cglobal ac3_max_msb_abs_int16, 2,2,5, src, len
     add       srcq, mmsize*2
     sub       lend, mmsize
     ja .loop
-%ifidn %1, min_max
+%ifidn %2, min_max
     ABS2        m2, m3, m0, m1
     por         m2, m3
 %endif
-    OR_WORDS_HORIZ m2, m0
+%ifidn mmsize, 16
+    movhlps     m0, m2
+    por         m2, m0
+%endif
+    PSHUFLW     m0, m2, 0xe
+    por         m2, m0
+    PSHUFLW     m0, m2, 0x1
+    por         m2, m0
     movd       eax, m2
     and        eax, 0xFFFF
     RET
 %endmacro
 
-INIT_MMX mmx
+INIT_MMX
 %define ABS2 ABS2_MMX
-AC3_MAX_MSB_ABS_INT16 or_abs
-INIT_MMX mmxext
-%define ABS2 ABS2_MMXEXT
-AC3_MAX_MSB_ABS_INT16 min_max
-INIT_XMM sse2
-AC3_MAX_MSB_ABS_INT16 min_max
-INIT_XMM ssse3
+%define PSHUFLW pshufw
+AC3_MAX_MSB_ABS_INT16 mmx, or_abs
+%define ABS2 ABS2_MMX2
+AC3_MAX_MSB_ABS_INT16 mmxext, min_max
+INIT_XMM
+%define PSHUFLW pshuflw
+AC3_MAX_MSB_ABS_INT16 sse2, min_max
 %define ABS2 ABS2_SSSE3
-AC3_MAX_MSB_ABS_INT16 or_abs
+AC3_MAX_MSB_ABS_INT16 ssse3, or_abs
 
 ;-----------------------------------------------------------------------------
 ; macro used for ff_ac3_lshift_int16() and ff_ac3_rshift_int32()
 ;-----------------------------------------------------------------------------
 
-%macro AC3_SHIFT 3 ; l/r, 16/32, shift instruction, instruction set
-cglobal ac3_%1shift_int%2, 3, 3, 5, src, len, shift
+%macro AC3_SHIFT 4 ; l/r, 16/32, shift instruction, instruction set
+cglobal ac3_%1shift_int%2_%4, 3,3,5, src, len, shift
     movd      m0, shiftd
 .loop:
     mova      m1, [srcq         ]
@@ -193,19 +179,19 @@ cglobal ac3_%1shift_int%2, 3, 3, 5, src, len, shift
 ; void ff_ac3_lshift_int16(int16_t *src, unsigned int len, unsigned int shift)
 ;-----------------------------------------------------------------------------
 
-INIT_MMX mmx
-AC3_SHIFT l, 16, psllw
-INIT_XMM sse2
-AC3_SHIFT l, 16, psllw
+INIT_MMX
+AC3_SHIFT l, 16, psllw, mmx
+INIT_XMM
+AC3_SHIFT l, 16, psllw, sse2
 
 ;-----------------------------------------------------------------------------
 ; void ff_ac3_rshift_int32(int32_t *src, unsigned int len, unsigned int shift)
 ;-----------------------------------------------------------------------------
 
-INIT_MMX mmx
-AC3_SHIFT r, 32, psrad
-INIT_XMM sse2
-AC3_SHIFT r, 32, psrad
+INIT_MMX
+AC3_SHIFT r, 32, psrad, mmx
+INIT_XMM
+AC3_SHIFT r, 32, psrad, sse2
 
 ;-----------------------------------------------------------------------------
 ; void ff_float_to_fixed24(int32_t *dst, const float *src, unsigned int len)
@@ -213,8 +199,8 @@ AC3_SHIFT r, 32, psrad
 
 ; The 3DNow! version is not bit-identical because pf2id uses truncation rather
 ; than round-to-nearest.
-INIT_MMX 3dnow
-cglobal float_to_fixed24, 3, 3, 0, dst, src, len
+INIT_MMX
+cglobal float_to_fixed24_3dnow, 3,3,0, dst, src, len
     movq   m0, [pf_1_24]
 .loop:
     movq   m1, [srcq   ]
@@ -237,11 +223,10 @@ cglobal float_to_fixed24, 3, 3, 0, dst, src, len
     add  dstq, 32
     sub  lend, 8
     ja .loop
-    femms
-    RET
+    REP_RET
 
-INIT_XMM sse
-cglobal float_to_fixed24, 3, 3, 3, dst, src, len
+INIT_XMM
+cglobal float_to_fixed24_sse, 3,3,3, dst, src, len
     movaps     m0, [pf_1_24]
 .loop:
     movaps     m1, [srcq   ]
@@ -262,11 +247,10 @@ cglobal float_to_fixed24, 3, 3, 3, dst, src, len
     add      dstq, 32
     sub      lend, 8
     ja .loop
-    emms
-    RET
+    REP_RET
 
-INIT_XMM sse2
-cglobal float_to_fixed24, 3, 3, 9, dst, src, len
+INIT_XMM
+cglobal float_to_fixed24_sse2, 3,3,9, dst, src, len
     movaps     m0, [pf_1_24]
 .loop:
     movaps     m1, [srcq    ]
@@ -330,8 +314,8 @@ cglobal float_to_fixed24, 3, 3, 9, dst, src, len
     paddd    %1, %2
 %endmacro
 
-INIT_XMM sse2
-cglobal ac3_compute_mantissa_size, 1, 2, 4, mant_cnt, sum
+INIT_XMM
+cglobal ac3_compute_mantissa_size_sse2, 1,2,4, mant_cnt, sum
     movdqa      m0, [mant_cntq      ]
     movdqa      m1, [mant_cntq+ 1*16]
     paddw       m0, [mant_cntq+ 2*16]
@@ -371,20 +355,20 @@ cglobal ac3_compute_mantissa_size, 1, 2, 4, mant_cnt, sum
 ; void ff_ac3_extract_exponents(uint8_t *exp, int32_t *coef, int nb_coefs)
 ;------------------------------------------------------------------------------
 
-%macro PABSD 1-2 ; src/dst, unused
-%if cpuflag(ssse3)
-    pabsd    %1, %1
-%else ; src/dst, tmp
+%macro PABSD_MMX 2 ; src/dst, tmp
     pxor     %2, %2
     pcmpgtd  %2, %1
     pxor     %1, %2
     psubd    %1, %2
-%endif
 %endmacro
 
-%if HAVE_AMD3DNOW_EXTERNAL
-INIT_MMX 3dnow
-cglobal ac3_extract_exponents, 3, 3, 0, exp, coef, len
+%macro PABSD_SSSE3 1-2 ; src/dst, unused
+    pabsd    %1, %1
+%endmacro
+
+%ifdef HAVE_AMD3DNOW
+INIT_MMX
+cglobal ac3_extract_exponents_3dnow, 3,3,0, exp, coef, len
     add      expq, lenq
     lea     coefq, [coefq+4*lenq]
     neg      lenq
@@ -393,8 +377,8 @@ cglobal ac3_extract_exponents, 3, 3, 0, exp, coef, len
 .loop:
     movq       m0, [coefq+4*lenq  ]
     movq       m1, [coefq+4*lenq+8]
-    PABSD      m0, m2
-    PABSD      m1, m2
+    PABSD_MMX  m0, m2
+    PABSD_MMX  m1, m2
     pslld      m0, 1
     por        m0, m3
     pi2fd      m2, m0
@@ -418,8 +402,8 @@ cglobal ac3_extract_exponents, 3, 3, 0, exp, coef, len
     REP_RET
 %endif
 
-%macro AC3_EXTRACT_EXPONENTS 0
-cglobal ac3_extract_exponents, 3, 3, 4, exp, coef, len
+%macro AC3_EXTRACT_EXPONENTS 1
+cglobal ac3_extract_exponents_%1, 3,3,4, exp, coef, len
     add     expq, lenq
     lea    coefq, [coefq+4*lenq]
     neg     lenq
@@ -450,11 +434,12 @@ cglobal ac3_extract_exponents, 3, 3, 4, exp, coef, len
     REP_RET
 %endmacro
 
-%if HAVE_SSE2_EXTERNAL
-INIT_XMM sse2
-AC3_EXTRACT_EXPONENTS
+%ifdef HAVE_SSE
+INIT_XMM
+%define PABSD PABSD_MMX
+AC3_EXTRACT_EXPONENTS sse2
+%ifdef HAVE_SSSE3
+%define PABSD PABSD_SSSE3
+AC3_EXTRACT_EXPONENTS ssse3
 %endif
-%if HAVE_SSSE3_EXTERNAL
-INIT_XMM ssse3
-AC3_EXTRACT_EXPONENTS
 %endif

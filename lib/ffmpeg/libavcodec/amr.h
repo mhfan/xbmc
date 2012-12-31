@@ -23,8 +23,6 @@
 #ifndef AVCODEC_AMR_H
 #define AVCODEC_AMR_H
 
-#include <string.h>
-
 #include "avcodec.h"
 
 #ifdef AMR_USE_16BIT_TABLES
@@ -63,7 +61,7 @@ static inline void ff_amr_bit_reorder(uint16_t *out, int size,
            field <<= 1;
            field |= data[bit >> 3] >> (bit & 7) & 1;
         }
-        out[field_offset >> 1] = field;
+        out[field_offset] = field;
     }
 }
 

@@ -26,8 +26,8 @@
 
 #include <stdint.h>
 
-#include "libavutil/channel_layout.h"
 #include "libavutil/crc.h"
+#include "libavutil/audioconvert.h"
 #include "get_bits.h"
 #include "parser.h"
 #include "mlp_parser.h"
@@ -83,10 +83,10 @@ static const uint64_t thd_layout[13] = {
     AV_CH_BACK_LEFT|AV_CH_BACK_RIGHT,                       // LRrs
     AV_CH_BACK_CENTER,                                      // Cs
     AV_CH_TOP_CENTER,                                       // Ts
-    AV_CH_SURROUND_DIRECT_LEFT|AV_CH_SURROUND_DIRECT_RIGHT, // LRsd
-    AV_CH_WIDE_LEFT|AV_CH_WIDE_RIGHT,                       // LRw
+    AV_CH_SIDE_LEFT|AV_CH_SIDE_RIGHT,                       // LRsd - TODO: Surround Direct
+    AV_CH_FRONT_LEFT_OF_CENTER|AV_CH_FRONT_RIGHT_OF_CENTER, // LRw  - TODO: Wide
     AV_CH_TOP_FRONT_CENTER,                                 // Cvh
-    AV_CH_LOW_FREQUENCY_2,                                  // LFE2
+    AV_CH_LOW_FREQUENCY                                     // LFE2
 };
 
 static int mlp_samplerate(int in)
@@ -109,8 +109,7 @@ static int truehd_channels(int chanmap)
 
 uint64_t ff_truehd_layout(int chanmap)
 {
-    int i;
-    uint64_t layout = 0;
+    int layout = 0, i;
 
     for (i = 0; i < 13; i++)
         layout |= thd_layout[i] * ((chanmap >> i) & 1);
@@ -129,7 +128,7 @@ int ff_mlp_read_major_sync(void *log, MLPHeaderInfo *mh, GetBitContext *gb)
     int ratebits;
     uint16_t checksum;
 
-    av_assert1(get_bits_count(gb) == 0);
+    assert(get_bits_count(gb) == 0);
 
     if (gb->size_in_bits < 28 << 3) {
         av_log(log, AV_LOG_ERROR, "packet too short, unable to read major sync\n");
@@ -239,8 +238,7 @@ static int mlp_parse(AVCodecParserContext *s,
         }
 
         if (!mp->in_sync) {
-            if (ff_combine_frame(&mp->pc, END_NOT_FOUND, &buf, &buf_size) != -1)
-                av_log(avctx, AV_LOG_WARNING, "ff_combine_frame failed\n");
+            ff_combine_frame(&mp->pc, END_NOT_FOUND, &buf, &buf_size);
             return buf_size;
         }
 
@@ -258,8 +256,7 @@ static int mlp_parse(AVCodecParserContext *s,
         }
 
         if (mp->pc.index + buf_size < 2) {
-            if (ff_combine_frame(&mp->pc, END_NOT_FOUND, &buf, &buf_size) != -1)
-                av_log(avctx, AV_LOG_WARNING, "ff_combine_frame failed\n");
+            ff_combine_frame(&mp->pc, END_NOT_FOUND, &buf, &buf_size);
             return buf_size;
         }
 
@@ -317,9 +314,8 @@ static int mlp_parse(AVCodecParserContext *s,
         else
             avctx->sample_fmt = AV_SAMPLE_FMT_S16;
         avctx->sample_rate = mh.group1_samplerate;
-        s->duration = mh.access_unit_size;
+        avctx->frame_size = mh.access_unit_size;
 
-        if(!avctx->channels || !avctx->channel_layout) {
         if (mh.stream_type == 0xbb) {
             /* MLP stream */
             avctx->channels = mlp_channels[mh.channels_mlp];
@@ -333,7 +329,6 @@ static int mlp_parse(AVCodecParserContext *s,
                 avctx->channels = truehd_channels(mh.channels_thd_stream1);
                 avctx->channel_layout = ff_truehd_layout(mh.channels_thd_stream1);
             }
-        }
         }
 
         if (!mh.is_vbr) /* Stream is CBR */
@@ -353,7 +348,7 @@ lost_sync:
 }
 
 AVCodecParser ff_mlp_parser = {
-    .codec_ids      = { AV_CODEC_ID_MLP, AV_CODEC_ID_TRUEHD },
+    .codec_ids      = { CODEC_ID_MLP, CODEC_ID_TRUEHD },
     .priv_data_size = sizeof(MLPParseContext),
     .parser_init    = mlp_init,
     .parser_parse   = mlp_parse,

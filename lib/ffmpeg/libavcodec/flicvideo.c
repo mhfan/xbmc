@@ -83,40 +83,22 @@ static av_cold int flic_decode_init(AVCodecContext *avctx)
     unsigned char *fli_header = (unsigned char *)avctx->extradata;
     int depth;
 
-    if (avctx->extradata_size != 0 &&
-        avctx->extradata_size != 12 &&
-        avctx->extradata_size != 128 &&
-        avctx->extradata_size != 256 &&
-        avctx->extradata_size != 904 &&
-        avctx->extradata_size != 1024) {
-        av_log(avctx, AV_LOG_ERROR, "Unexpected extradata size %d\n", avctx->extradata_size);
+    if (avctx->extradata_size != 12 &&
+        avctx->extradata_size != 128) {
+        av_log(avctx, AV_LOG_ERROR, "Expected extradata of 12 or 128 bytes\n");
         return AVERROR_INVALIDDATA;
     }
 
     s->avctx = avctx;
 
+    s->fli_type = AV_RL16(&fli_header[4]); /* Might be overridden if a Magic Carpet FLC */
+
+    depth = 0;
     if (s->avctx->extradata_size == 12) {
         /* special case for magic carpet FLIs */
         s->fli_type = FLC_MAGIC_CARPET_SYNTHETIC_TYPE_CODE;
         depth = 8;
-    } else if (avctx->extradata_size == 1024) {
-        uint8_t *ptr = avctx->extradata;
-        int i;
-
-        for (i = 0; i < 256; i++) {
-            s->palette[i] = AV_RL32(ptr);
-            ptr += 4;
-        }
-        depth = 8;
-        /* FLI in MOV, see e.g. FFmpeg trac issue #626 */
-    } else if (avctx->extradata_size == 0 ||
-               avctx->extradata_size == 256 ||
-        /* see FFmpeg ticket #1234 */
-               avctx->extradata_size == 904) {
-        s->fli_type = FLI_TYPE_CODE;
-        depth = 8;
     } else {
-        s->fli_type = AV_RL16(&fli_header[4]);
         depth = AV_RL16(&fli_header[12]);
     }
 
@@ -129,15 +111,15 @@ static av_cold int flic_decode_init(AVCodecContext *avctx)
     }
 
     switch (depth) {
-        case 8  : avctx->pix_fmt = AV_PIX_FMT_PAL8; break;
-        case 15 : avctx->pix_fmt = AV_PIX_FMT_RGB555; break;
-        case 16 : avctx->pix_fmt = AV_PIX_FMT_RGB565; break;
-        case 24 : avctx->pix_fmt = AV_PIX_FMT_BGR24; /* Supposedly BGR, but havent any files to test with */
+        case 8  : avctx->pix_fmt = PIX_FMT_PAL8; break;
+        case 15 : avctx->pix_fmt = PIX_FMT_RGB555; break;
+        case 16 : avctx->pix_fmt = PIX_FMT_RGB565; break;
+        case 24 : avctx->pix_fmt = PIX_FMT_BGR24; /* Supposedly BGR, but havent any files to test with */
                   av_log(avctx, AV_LOG_ERROR, "24Bpp FLC/FLX is unsupported due to no test files.\n");
-                  return AVERROR_PATCHWELCOME;
+                  return -1;
         default :
                   av_log(avctx, AV_LOG_ERROR, "Unknown FLC/FLX depth of %d Bpp is unsupported.\n",depth);
-                  return AVERROR_INVALIDDATA;
+                  return -1;
     }
 
     avcodec_get_frame_defaults(&s->frame);
@@ -148,7 +130,7 @@ static av_cold int flic_decode_init(AVCodecContext *avctx)
 }
 
 static int flic_decode_frame_8BPP(AVCodecContext *avctx,
-                                  void *data, int *got_frame,
+                                  void *data, int *data_size,
                                   const uint8_t *buf, int buf_size)
 {
     FlicDecodeContext *s = avctx->priv_data;
@@ -165,7 +147,7 @@ static int flic_decode_frame_8BPP(AVCodecContext *avctx,
     unsigned int chunk_size;
     int chunk_type;
 
-    int i, j, ret;
+    int i, j;
 
     int color_packets;
     int color_changes;
@@ -187,9 +169,9 @@ static int flic_decode_frame_8BPP(AVCodecContext *avctx,
 
     s->frame.reference = 3;
     s->frame.buffer_hints = FF_BUFFER_HINTS_VALID | FF_BUFFER_HINTS_PRESERVE | FF_BUFFER_HINTS_REUSABLE;
-    if ((ret = avctx->reget_buffer(avctx, &s->frame)) < 0) {
+    if (avctx->reget_buffer(avctx, &s->frame) < 0) {
         av_log(avctx, AV_LOG_ERROR, "reget_buffer() failed\n");
-        return ret;
+        return -1;
     }
 
     pixels = s->frame.data[0];
@@ -256,7 +238,7 @@ static int flic_decode_frame_8BPP(AVCodecContext *avctx,
                     r = bytestream2_get_byte(&g2) << color_shift;
                     g = bytestream2_get_byte(&g2) << color_shift;
                     b = bytestream2_get_byte(&g2) << color_shift;
-                    entry = 0xFFU << 24 | r << 16 | g << 8 | b;
+                    entry = 0xFF << 24 | r << 16 | g << 8 | b;
                     if (color_shift == 2)
                         entry |= entry >> 6 & 0x30303;
                     if (s->palette[palette_ptr] != entry)
@@ -448,8 +430,9 @@ static int flic_decode_frame_8BPP(AVCodecContext *avctx,
     }
 
     /* by the end of the chunk, the stream ptr should equal the frame
-     * size (minus 1 or 2, possibly); if it doesn't, issue a warning */
-    if (bytestream2_get_bytes_left(&g2) > 2)
+     * size (minus 1, possibly); if it doesn't, issue a warning */
+    if ((bytestream2_get_bytes_left(&g2) != 0) &&
+        (bytestream2_get_bytes_left(&g2) != 1))
         av_log(avctx, AV_LOG_ERROR, "Processed FLI chunk where chunk size = %d " \
                "and final chunk ptr = %d\n", buf_size,
                buf_size - bytestream2_get_bytes_left(&g2));
@@ -461,14 +444,14 @@ static int flic_decode_frame_8BPP(AVCodecContext *avctx,
         s->new_palette = 0;
     }
 
-    *got_frame = 1;
+    *data_size=sizeof(AVFrame);
     *(AVFrame*)data = s->frame;
 
     return buf_size;
 }
 
 static int flic_decode_frame_15_16BPP(AVCodecContext *avctx,
-                                      void *data, int *got_frame,
+                                      void *data, int *data_size,
                                       const uint8_t *buf, int buf_size)
 {
     /* Note, the only difference between the 15Bpp and 16Bpp */
@@ -485,7 +468,7 @@ static int flic_decode_frame_15_16BPP(AVCodecContext *avctx,
     unsigned int chunk_size;
     int chunk_type;
 
-    int i, j, ret;
+    int i, j;
 
     int lines;
     int compressed_lines;
@@ -502,9 +485,9 @@ static int flic_decode_frame_15_16BPP(AVCodecContext *avctx,
 
     s->frame.reference = 3;
     s->frame.buffer_hints = FF_BUFFER_HINTS_VALID | FF_BUFFER_HINTS_PRESERVE | FF_BUFFER_HINTS_REUSABLE;
-    if ((ret = avctx->reget_buffer(avctx, &s->frame)) < 0) {
+    if (avctx->reget_buffer(avctx, &s->frame) < 0) {
         av_log(avctx, AV_LOG_ERROR, "reget_buffer() failed\n");
-        return ret;
+        return -1;
     }
 
     pixels = s->frame.data[0];
@@ -539,9 +522,7 @@ static int flic_decode_frame_15_16BPP(AVCodecContext *avctx,
             /* For some reason, it seems that non-palettized flics do
              * include one of these chunks in their first frame.
              * Why I do not know, it seems rather extraneous. */
-            av_dlog(avctx,
-                    "Unexpected Palette chunk %d in non-palettized FLC\n",
-                    chunk_type);
+/*            av_log(avctx, AV_LOG_ERROR, "Unexpected Palette chunk %d in non-paletised FLC\n",chunk_type);*/
             bytestream2_skip(&g2, chunk_size - 6);
             break;
 
@@ -644,7 +625,7 @@ static int flic_decode_frame_15_16BPP(AVCodecContext *avctx,
                 }
 
                 /* Now FLX is strange, in that it is "byte" as opposed to "pixel" run length compressed.
-                 * This does not give us any good opportunity to perform word endian conversion
+                 * This does not give us any good oportunity to perform word endian conversion
                  * during decompression. So if it is required (i.e., this is not a LE target, we do
                  * a second pass over the line here, swapping the bytes.
                  */
@@ -748,37 +729,37 @@ static int flic_decode_frame_15_16BPP(AVCodecContext *avctx,
                "and final chunk ptr = %d\n", buf_size, bytestream2_tell(&g2));
 
 
-    *got_frame = 1;
+    *data_size=sizeof(AVFrame);
     *(AVFrame*)data = s->frame;
 
     return buf_size;
 }
 
 static int flic_decode_frame_24BPP(AVCodecContext *avctx,
-                                   void *data, int *got_frame,
+                                   void *data, int *data_size,
                                    const uint8_t *buf, int buf_size)
 {
   av_log(avctx, AV_LOG_ERROR, "24Bpp FLC Unsupported due to lack of test files.\n");
-  return AVERROR_PATCHWELCOME;
+  return -1;
 }
 
 static int flic_decode_frame(AVCodecContext *avctx,
-                             void *data, int *got_frame,
+                             void *data, int *data_size,
                              AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
-    if (avctx->pix_fmt == AV_PIX_FMT_PAL8) {
-      return flic_decode_frame_8BPP(avctx, data, got_frame,
+    if (avctx->pix_fmt == PIX_FMT_PAL8) {
+      return flic_decode_frame_8BPP(avctx, data, data_size,
                                     buf, buf_size);
     }
-    else if ((avctx->pix_fmt == AV_PIX_FMT_RGB555) ||
-             (avctx->pix_fmt == AV_PIX_FMT_RGB565)) {
-      return flic_decode_frame_15_16BPP(avctx, data, got_frame,
+    else if ((avctx->pix_fmt == PIX_FMT_RGB555) ||
+             (avctx->pix_fmt == PIX_FMT_RGB565)) {
+      return flic_decode_frame_15_16BPP(avctx, data, data_size,
                                         buf, buf_size);
     }
-    else if (avctx->pix_fmt == AV_PIX_FMT_BGR24) {
-      return flic_decode_frame_24BPP(avctx, data, got_frame,
+    else if (avctx->pix_fmt == PIX_FMT_BGR24) {
+      return flic_decode_frame_24BPP(avctx, data, data_size,
                                      buf, buf_size);
     }
 
@@ -787,7 +768,7 @@ static int flic_decode_frame(AVCodecContext *avctx,
     /* the finite set of possibilites allowable by here. */
     /* But in case we do, just error out. */
     av_log(avctx, AV_LOG_ERROR, "Unknown FLC format, my science cannot explain how this happened.\n");
-    return AVERROR_INVALIDDATA;
+    return -1;
 }
 
 
@@ -804,11 +785,11 @@ static av_cold int flic_decode_end(AVCodecContext *avctx)
 AVCodec ff_flic_decoder = {
     .name           = "flic",
     .type           = AVMEDIA_TYPE_VIDEO,
-    .id             = AV_CODEC_ID_FLIC,
+    .id             = CODEC_ID_FLIC,
     .priv_data_size = sizeof(FlicDecodeContext),
     .init           = flic_decode_init,
     .close          = flic_decode_end,
     .decode         = flic_decode_frame,
     .capabilities   = CODEC_CAP_DR1,
-    .long_name      = NULL_IF_CONFIG_SMALL("Autodesk Animator Flic video"),
+    .long_name = NULL_IF_CONFIG_SMALL("Autodesk Animator Flic video"),
 };

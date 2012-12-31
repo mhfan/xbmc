@@ -27,7 +27,6 @@
  *     http://tools.ietf.org/html/rfc3625
  */
 
-#include "libavutil/channel_layout.h"
 #include "libavutil/intreadwrite.h"
 #include "avformat.h"
 
@@ -81,7 +80,7 @@ static int qcp_probe(AVProbeData *pd)
     return 0;
 }
 
-static int qcp_read_header(AVFormatContext *s)
+static int qcp_read_header(AVFormatContext *s, AVFormatParameters *ap)
 {
     AVIOContext *pb = s->pb;
     QCPContext    *c  = s->priv_data;
@@ -97,10 +96,9 @@ static int qcp_read_header(AVFormatContext *s)
 
     st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
     st->codec->channels   = 1;
-    st->codec->channel_layout = AV_CH_LAYOUT_MONO;
     avio_read(pb, buf, 16);
     if (is_qcelp_13k_guid(buf)) {
-        st->codec->codec_id = AV_CODEC_ID_QCELP;
+        st->codec->codec_id = CODEC_ID_QCELP;
     } else if (!memcmp(buf, guid_evrc, 16)) {
         av_log(s, AV_LOG_ERROR, "EVRC codec is not supported.\n");
         return AVERROR_PATCHWELCOME;
@@ -190,7 +188,7 @@ static int qcp_read_packet(AVFormatContext *s, AVPacket *pkt)
 
 AVInputFormat ff_qcp_demuxer = {
     .name           = "qcp",
-    .long_name      = NULL_IF_CONFIG_SMALL("QCP"),
+    .long_name      = NULL_IF_CONFIG_SMALL("QCP format"),
     .priv_data_size = sizeof(QCPContext),
     .read_probe     = qcp_probe,
     .read_header    = qcp_read_header,

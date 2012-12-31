@@ -69,9 +69,11 @@ static int rl2_probe(AVProbeData *p)
 /**
  * read rl2 header data and setup the avstreams
  * @param s demuxer context
+ * @param ap format parameters
  * @return 0 on success, AVERROR otherwise
  */
-static av_cold int rl2_read_header(AVFormatContext *s)
+static av_cold int rl2_read_header(AVFormatContext *s,
+                            AVFormatParameters *ap)
 {
     AVIOContext *pb = s->pb;
     AVStream *st;
@@ -114,7 +116,7 @@ static av_cold int rl2_read_header(AVFormatContext *s)
          return AVERROR(ENOMEM);
 
     st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
-    st->codec->codec_id = AV_CODEC_ID_RL2;
+    st->codec->codec_id = CODEC_ID_RL2;
     st->codec->codec_tag = 0;  /* no fourcc */
     st->codec->width = 320;
     st->codec->height = 200;
@@ -146,7 +148,7 @@ static av_cold int rl2_read_header(AVFormatContext *s)
         if (!st)
             return AVERROR(ENOMEM);
         st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
-        st->codec->codec_id = AV_CODEC_ID_PCM_U8;
+        st->codec->codec_id = CODEC_ID_PCM_U8;
         st->codec->codec_tag = 1;
         st->codec->channels = channels;
         st->codec->bits_per_coded_sample = 8;
@@ -232,7 +234,7 @@ static int rl2_read_packet(AVFormatContext *s,
     }
 
     if(stream_id == -1)
-        return AVERROR_EOF;
+        return AVERROR(EIO);
 
     ++rl2->index_pos[stream_id];
 
@@ -289,10 +291,11 @@ static int rl2_read_seek(AVFormatContext *s, int stream_index, int64_t timestamp
 
 AVInputFormat ff_rl2_demuxer = {
     .name           = "rl2",
-    .long_name      = NULL_IF_CONFIG_SMALL("RL2"),
+    .long_name      = NULL_IF_CONFIG_SMALL("RL2 format"),
     .priv_data_size = sizeof(Rl2DemuxContext),
     .read_probe     = rl2_probe,
     .read_header    = rl2_read_header,
     .read_packet    = rl2_read_packet,
     .read_seek      = rl2_read_seek,
 };
+

@@ -18,7 +18,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/arm/asm.S"
+#include "asm.S"
+
+        preserve8
 
 .macro  prerot          dst, rt
         lsr             r3,  r6,  #2            @ n4

@@ -34,7 +34,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "libavutil/common.h"
 #include "libavutil/intreadwrite.h"
 #include "avcodec.h"
 
@@ -334,7 +333,7 @@ static int cinepak_decode (CinepakContext *s)
     if (s->sega_film_skip_bytes == -1) {
         if (!encoded_buf_size) {
             av_log_ask_for_sample(s->avctx, "encoded_buf_size is 0");
-            return AVERROR_PATCHWELCOME;
+            return AVERROR_INVALIDDATA;
         }
         if (encoded_buf_size != s->size && (s->size % encoded_buf_size) != 0) {
             /* If the encoded frame size differs from the frame size as indicated
@@ -412,10 +411,10 @@ static av_cold int cinepak_decode_init(AVCodecContext *avctx)
     // check for paletted data
     if (avctx->bits_per_coded_sample != 8) {
         s->palette_video = 0;
-        avctx->pix_fmt = AV_PIX_FMT_YUV420P;
+        avctx->pix_fmt = PIX_FMT_YUV420P;
     } else {
         s->palette_video = 1;
-        avctx->pix_fmt = AV_PIX_FMT_PAL8;
+        avctx->pix_fmt = PIX_FMT_PAL8;
     }
 
     avcodec_get_frame_defaults(&s->frame);
@@ -425,7 +424,7 @@ static av_cold int cinepak_decode_init(AVCodecContext *avctx)
 }
 
 static int cinepak_decode_frame(AVCodecContext *avctx,
-                                void *data, int *got_frame,
+                                void *data, int *data_size,
                                 AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
@@ -456,7 +455,7 @@ static int cinepak_decode_frame(AVCodecContext *avctx,
     if (s->palette_video)
         memcpy (s->frame.data[1], s->pal, AVPALETTE_SIZE);
 
-    *got_frame = 1;
+    *data_size = sizeof(AVFrame);
     *(AVFrame*)data = s->frame;
 
     /* report that the buffer was completely consumed */
@@ -476,11 +475,11 @@ static av_cold int cinepak_decode_end(AVCodecContext *avctx)
 AVCodec ff_cinepak_decoder = {
     .name           = "cinepak",
     .type           = AVMEDIA_TYPE_VIDEO,
-    .id             = AV_CODEC_ID_CINEPAK,
+    .id             = CODEC_ID_CINEPAK,
     .priv_data_size = sizeof(CinepakContext),
     .init           = cinepak_decode_init,
     .close          = cinepak_decode_end,
     .decode         = cinepak_decode_frame,
     .capabilities   = CODEC_CAP_DR1,
-    .long_name      = NULL_IF_CONFIG_SMALL("Cinepak"),
+    .long_name = NULL_IF_CONFIG_SMALL("Cinepak"),
 };

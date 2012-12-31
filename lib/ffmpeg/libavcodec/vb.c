@@ -29,7 +29,6 @@
 
 #include "avcodec.h"
 #include "bytestream.h"
-#include "internal.h"
 
 enum VBFlags{
     VB_HAS_GMC     = 0x01,
@@ -185,8 +184,7 @@ static int vb_decode_framedata(VBDecContext *c, int offset)
     return 0;
 }
 
-static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                        AVPacket *avpkt)
+static int decode_frame(AVCodecContext *avctx, void *data, int *data_size, AVPacket *avpkt)
 {
     VBDecContext * const c = avctx->priv_data;
     uint8_t *outptr, *srcptr;
@@ -200,7 +198,7 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
     if(c->pic.data[0])
         avctx->release_buffer(avctx, &c->pic);
     c->pic.reference = 3;
-    if(ff_get_buffer(avctx, &c->pic) < 0){
+    if(avctx->get_buffer(avctx, &c->pic) < 0){
         av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
         return -1;
     }
@@ -240,7 +238,7 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
 
     FFSWAP(uint8_t*, c->frame, c->prev_frame);
 
-    *got_frame = 1;
+    *data_size = sizeof(AVFrame);
     *(AVFrame*)data = c->pic;
 
     /* always report that the buffer was completely consumed */
@@ -252,7 +250,7 @@ static av_cold int decode_init(AVCodecContext *avctx)
     VBDecContext * const c = avctx->priv_data;
 
     c->avctx = avctx;
-    avctx->pix_fmt = AV_PIX_FMT_PAL8;
+    avctx->pix_fmt = PIX_FMT_PAL8;
     avcodec_get_frame_defaults(&c->pic);
 
     c->frame      = av_mallocz(avctx->width * avctx->height);
@@ -276,11 +274,11 @@ static av_cold int decode_end(AVCodecContext *avctx)
 AVCodec ff_vb_decoder = {
     .name           = "vb",
     .type           = AVMEDIA_TYPE_VIDEO,
-    .id             = AV_CODEC_ID_VB,
+    .id             = CODEC_ID_VB,
     .priv_data_size = sizeof(VBDecContext),
     .init           = decode_init,
     .close          = decode_end,
     .decode         = decode_frame,
-    .long_name      = NULL_IF_CONFIG_SMALL("Beam Software VB"),
-    .capabilities   = CODEC_CAP_DR1,
+    .long_name = NULL_IF_CONFIG_SMALL("Beam Software VB"),
 };
+

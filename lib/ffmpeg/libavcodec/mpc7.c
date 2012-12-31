@@ -25,16 +25,19 @@
  * divided into 32 subbands.
  */
 
-#include "libavutil/channel_layout.h"
 #include "libavutil/lfg.h"
 #include "avcodec.h"
 #include "get_bits.h"
 #include "dsputil.h"
-#include "internal.h"
 #include "mpegaudiodsp.h"
+#include "libavutil/audioconvert.h"
 
 #include "mpc.h"
 #include "mpc7data.h"
+
+#define BANDS            32
+#define SAMPLES_PER_BAND 36
+#define MPC_FRAME_SIZE   (BANDS * SAMPLES_PER_BAND)
 
 static VLC scfi_vlc, dscf_vlc, hdr_vlc, quant_vlc[MPC7_QUANT_VLC_TABLES][2];
 
@@ -50,7 +53,7 @@ static av_cold int mpc7_decode_init(AVCodecContext * avctx)
     int i, j;
     MPCContext *c = avctx->priv_data;
     GetBitContext gb;
-    LOCAL_ALIGNED_16(uint8_t, buf, [16]);
+    uint8_t buf[16];
     static int vlc_initialized = 0;
 
     static VLC_TYPE scfi_table[1 << MPC7_SCFI_BITS][2];
@@ -71,7 +74,7 @@ static av_cold int mpc7_decode_init(AVCodecContext * avctx)
     }
     memset(c->oldDSCF, 0, sizeof(c->oldDSCF));
     av_lfg_init(&c->rnd, 0xDEADBEEF);
-    ff_dsputil_init(&c->dsp, avctx);
+    dsputil_init(&c->dsp, avctx);
     ff_mpadsp_init(&c->mpadsp);
     c->dsp.bswap_buf((uint32_t*)buf, (const uint32_t*)avctx->extradata, 4);
     ff_mpc_init();
@@ -91,11 +94,8 @@ static av_cold int mpc7_decode_init(AVCodecContext * avctx)
             c->IS, c->MSS, c->gapless, c->lastframelen, c->maxbands);
     c->frames_to_skip = 0;
 
-    avctx->sample_fmt = AV_SAMPLE_FMT_S16P;
+    avctx->sample_fmt = AV_SAMPLE_FMT_S16;
     avctx->channel_layout = AV_CH_LAYOUT_STEREO;
-
-    avcodec_get_frame_defaults(&c->frame);
-    avctx->coded_frame = &c->frame;
 
     if(vlc_initialized) return 0;
     av_log(avctx, AV_LOG_DEBUG, "Initing VLC\n");
@@ -136,6 +136,9 @@ static av_cold int mpc7_decode_init(AVCodecContext * avctx)
         }
     }
     vlc_initialized = 1;
+
+    avcodec_get_frame_defaults(&c->frame);
+    avctx->coded_frame = &c->frame;
 
     return 0;
 }
@@ -190,53 +193,41 @@ static int get_scale_idx(GetBitContext *gb, int ref)
     int t = get_vlc2(gb, dscf_vlc.table, MPC7_DSCF_BITS, 1) - 7;
     if (t == 8)
         return get_bits(gb, 6);
-    return ref + t;
+    return av_clip_uintp2(ref + t, 7);
 }
 
 static int mpc7_decode_frame(AVCodecContext * avctx, void *data,
                              int *got_frame_ptr, AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
-    int buf_size;
+    int buf_size = avpkt->size;
     MPCContext *c = avctx->priv_data;
     GetBitContext gb;
     int i, ch;
     int mb = -1;
     Band *bands = c->bands;
-    int off, ret, last_frame, skip;
+    int off, ret;
     int bits_used, bits_avail;
 
     memset(bands, 0, sizeof(*bands) * (c->maxbands + 1));
-
-    buf_size = avpkt->size & ~3;
-    if (buf_size <= 0) {
-        av_log(avctx, AV_LOG_ERROR, "packet size is too small (%i bytes)\n",
-               avpkt->size);
-        return AVERROR_INVALIDDATA;
+    if(buf_size <= 4){
+        av_log(avctx, AV_LOG_ERROR, "Too small buffer passed (%i bytes)\n", buf_size);
+        return AVERROR(EINVAL);
     }
-    if (buf_size != avpkt->size) {
-        av_log(avctx, AV_LOG_WARNING, "packet size is not a multiple of 4. "
-               "extra bytes at the end will be skipped.\n");
-    }
-
-    skip       = buf[0];
-    last_frame = buf[1];
-    buf       += 4;
-    buf_size  -= 4;
 
     /* get output buffer */
-    c->frame.nb_samples = MPC_FRAME_SIZE;
-    if ((ret = ff_get_buffer(avctx, &c->frame)) < 0) {
+    c->frame.nb_samples = buf[1] ? c->lastframelen : MPC_FRAME_SIZE;
+    if ((ret = avctx->get_buffer(avctx, &c->frame)) < 0) {
         av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
         return ret;
     }
 
-    av_fast_padded_malloc(&c->bits, &c->buf_size, buf_size);
-    if (!c->bits)
+    av_fast_padded_malloc(&c->buffer, &c->buffer_size, FFALIGN(buf_size - 1, 4));
+    if (!c->buffer)
         return AVERROR(ENOMEM);
-    c->dsp.bswap_buf((uint32_t *)c->bits, (const uint32_t *)buf, buf_size >> 2);
-    init_get_bits(&gb, c->bits, buf_size * 8);
-    skip_bits_long(&gb, skip);
+    c->dsp.bswap_buf((uint32_t*)c->buffer, (const uint32_t*)(buf + 4), (buf_size - 4) >> 2);
+    init_get_bits(&gb, c->buffer, (buf_size - 4)* 8);
+    skip_bits_long(&gb, buf[0]);
 
     /* read subband indexes */
     for(i = 0; i <= c->maxbands; i++){
@@ -244,11 +235,7 @@ static int mpc7_decode_frame(AVCodecContext * avctx, void *data,
             int t = 4;
             if(i) t = get_vlc2(&gb, hdr_vlc.table, MPC7_HDR_BITS, 1) - 5;
             if(t == 4) bands[i].res[ch] = get_bits(&gb, 4);
-            else bands[i].res[ch] = bands[i-1].res[ch] + t;
-            if (bands[i].res[ch] < -1 || bands[i].res[ch] > 17) {
-                av_log(avctx, AV_LOG_ERROR, "subband index invalid\n");
-                return AVERROR_INVALIDDATA;
-            }
+            else bands[i].res[ch] = av_clip(bands[i-1].res[ch] + t, 0, 17);
         }
 
         if(bands[i].res[0] || bands[i].res[1]){
@@ -294,26 +281,24 @@ static int mpc7_decode_frame(AVCodecContext * avctx, void *data,
         for(ch = 0; ch < 2; ch++)
             idx_to_quant(c, &gb, bands[i].res[ch], c->Q[ch] + off);
 
-    ff_mpc_dequantize_and_synth(c, mb, (int16_t **)c->frame.extended_data, 2);
-    if(last_frame)
-        c->frame.nb_samples = c->lastframelen;
+    ff_mpc_dequantize_and_synth(c, mb, c->frame.data[0], 2);
 
     bits_used = get_bits_count(&gb);
-    bits_avail = buf_size * 8;
-    if (!last_frame && ((bits_avail < bits_used) || (bits_used + 32 <= bits_avail))) {
-        av_log(avctx, AV_LOG_ERROR, "Error decoding frame: used %i of %i bits\n", bits_used, bits_avail);
+    bits_avail = (buf_size - 4) * 8;
+    if(!buf[1] && ((bits_avail < bits_used) || (bits_used + 32 <= bits_avail))){
+        av_log(NULL,0, "Error decoding frame: used %i of %i bits\n", bits_used, bits_avail);
         return -1;
     }
     if(c->frames_to_skip){
         c->frames_to_skip--;
         *got_frame_ptr = 0;
-        return avpkt->size;
+        return buf_size;
     }
 
     *got_frame_ptr   = 1;
     *(AVFrame *)data = c->frame;
 
-    return avpkt->size;
+    return buf_size;
 }
 
 static void mpc7_decode_flush(AVCodecContext *avctx)
@@ -327,22 +312,20 @@ static void mpc7_decode_flush(AVCodecContext *avctx)
 static av_cold int mpc7_decode_close(AVCodecContext *avctx)
 {
     MPCContext *c = avctx->priv_data;
-    av_freep(&c->bits);
-    c->buf_size = 0;
+    av_freep(&c->buffer);
+    c->buffer_size = 0;
     return 0;
 }
 
 AVCodec ff_mpc7_decoder = {
     .name           = "mpc7",
     .type           = AVMEDIA_TYPE_AUDIO,
-    .id             = AV_CODEC_ID_MUSEPACK7,
+    .id             = CODEC_ID_MUSEPACK7,
     .priv_data_size = sizeof(MPCContext),
     .init           = mpc7_decode_init,
     .close          = mpc7_decode_close,
     .decode         = mpc7_decode_frame,
-    .flush          = mpc7_decode_flush,
+    .flush = mpc7_decode_flush,
     .capabilities   = CODEC_CAP_DR1,
-    .long_name      = NULL_IF_CONFIG_SMALL("Musepack SV7"),
-    .sample_fmts    = (const enum AVSampleFormat[]) { AV_SAMPLE_FMT_S16P,
-                                                      AV_SAMPLE_FMT_NONE },
+    .long_name = NULL_IF_CONFIG_SMALL("Musepack SV7"),
 };

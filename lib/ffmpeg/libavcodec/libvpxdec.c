@@ -27,7 +27,6 @@
 #include <vpx/vpx_decoder.h>
 #include <vpx/vp8dx.h>
 
-#include "libavutil/common.h"
 #include "libavutil/imgutils.h"
 #include "avcodec.h"
 
@@ -54,12 +53,12 @@ static av_cold int vp8_init(AVCodecContext *avctx)
         return AVERROR(EINVAL);
     }
 
-    avctx->pix_fmt = AV_PIX_FMT_YUV420P;
+    avctx->pix_fmt = PIX_FMT_YUV420P;
     return 0;
 }
 
 static int vp8_decode(AVCodecContext *avctx,
-                      void *data, int *got_frame, AVPacket *avpkt)
+                      void *data, int *data_size, AVPacket *avpkt)
 {
     VP8Context *ctx = avctx->priv_data;
     AVFrame *picture = data;
@@ -100,7 +99,7 @@ static int vp8_decode(AVCodecContext *avctx,
         picture->linesize[1] = img->stride[1];
         picture->linesize[2] = img->stride[2];
         picture->linesize[3] = 0;
-        *got_frame           = 1;
+        *data_size           = sizeof(AVPicture);
     }
     return avpkt->size;
 }
@@ -115,7 +114,7 @@ static av_cold int vp8_free(AVCodecContext *avctx)
 AVCodec ff_libvpx_decoder = {
     .name           = "libvpx",
     .type           = AVMEDIA_TYPE_VIDEO,
-    .id             = AV_CODEC_ID_VP8,
+    .id             = CODEC_ID_VP8,
     .priv_data_size = sizeof(VP8Context),
     .init           = vp8_init,
     .close          = vp8_free,

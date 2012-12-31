@@ -55,7 +55,7 @@ enum Mode {
 /**
  * AMRNB unpacked data subframe
  */
-typedef struct AMRNBSubframe {
+typedef struct {
     uint16_t p_lag;      ///< index to decode the pitch lag
     uint16_t p_gain;     ///< index to decode the pitch gain
     uint16_t fixed_gain; ///< index to decode the fixed gain factor, for MODE_12k2 and MODE_7k95
@@ -65,13 +65,13 @@ typedef struct AMRNBSubframe {
 /**
  * AMRNB unpacked data frame
  */
-typedef struct AMRNBFrame {
+typedef struct {
     uint16_t lsf[5];           ///< lsf parameters: 5 parameters for MODE_12k2, only 3 for other modes
     AMRNBSubframe subframe[4]; ///< unpacked data for each subframe
 } AMRNBFrame;
 
 /** The index of a frame parameter */
-#define AMR_BIT(field)                  (offsetof(AMRNBFrame, field))
+#define AMR_BIT(field)                  (offsetof(AMRNBFrame, field) >> 1)
 /** The index of a subframe-specific parameter */
 #define AMR_OF(frame_num, variable)     AMR_BIT(subframe[frame_num].variable)
 
@@ -1669,3 +1669,4 @@ static const float highpass_poles[2] = { -1.933105469, 0.935913085 };
 static const float highpass_gain     = 0.939819335;
 
 #endif /* AVCODEC_AMRNBDATA_H */
+

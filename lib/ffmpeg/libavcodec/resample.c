@@ -24,15 +24,10 @@
  * samplerate conversion for both audio and video
  */
 
-#include <string.h>
-
 #include "avcodec.h"
 #include "audioconvert.h"
 #include "libavutil/opt.h"
-#include "libavutil/mem.h"
 #include "libavutil/samplefmt.h"
-
-#if FF_API_AVCODEC_RESAMPLE
 
 #define MAX_CHANNELS 8
 
@@ -328,13 +323,11 @@ int audio_resample(ReSampleContext *s, short *output, short *input, int nb_sampl
     lenout= 2*s->output_channels*nb_samples * s->ratio + 16;
 
     if (s->sample_fmt[1] != AV_SAMPLE_FMT_S16) {
-        int out_size = lenout * av_get_bytes_per_sample(s->sample_fmt[1]) *
-                       s->output_channels;
         output_bak = output;
 
-        if (!s->buffer_size[1] || s->buffer_size[1] < out_size) {
+        if (!s->buffer_size[1] || s->buffer_size[1] < 2*lenout) {
             av_free(s->buffer[1]);
-            s->buffer_size[1] = out_size;
+            s->buffer_size[1] = 2*lenout;
             s->buffer[1] = av_malloc(s->buffer_size[1]);
             if (!s->buffer[1]) {
                 av_log(s->resample_context, AV_LOG_ERROR, "Could not allocate buffer\n");
@@ -406,7 +399,7 @@ int audio_resample(ReSampleContext *s, short *output, short *input, int nb_sampl
         if (av_audio_convert(s->convert_ctx[1], obuf, ostride,
                              ibuf, istride, nb_samples1 * s->output_channels) < 0) {
             av_log(s->resample_context, AV_LOG_ERROR,
-                   "Audio sample format conversion failed\n");
+                   "Audio sample format convertion failed\n");
             return 0;
         }
     }
@@ -431,5 +424,3 @@ void audio_resample_close(ReSampleContext *s)
     av_audio_convert_free(s->convert_ctx[1]);
     av_free(s);
 }
-
-#endif

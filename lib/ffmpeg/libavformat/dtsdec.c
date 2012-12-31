@@ -28,9 +28,7 @@
 #define DCA_MARKER_RAW_BE 0x7FFE8001
 #define DCA_MARKER_RAW_LE 0xFE7F0180
 
-int dts_probe(AVProbeData *p);
-
-/*static */int dts_probe(AVProbeData *p)
+static int dts_probe(AVProbeData *p)
 {
     const uint8_t *buf, *bufp;
     uint32_t state = -1;
@@ -73,7 +71,7 @@ AVInputFormat ff_dts_demuxer = {
     .read_probe     = dts_probe,
     .read_header    = ff_raw_audio_read_header,
     .read_packet    = ff_raw_read_partial_packet,
-    .flags          = AVFMT_GENERIC_INDEX,
-    .extensions     = "dts",
-    .raw_codec_id   = AV_CODEC_ID_DTS,
+    .flags= AVFMT_GENERIC_INDEX,
+    .extensions = "dts",
+    .value = CODEC_ID_DTS,
 };

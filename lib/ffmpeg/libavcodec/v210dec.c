@@ -22,11 +22,8 @@
  */
 
 #include "avcodec.h"
-#include "internal.h"
 #include "v210dec.h"
 #include "libavutil/bswap.h"
-#include "libavutil/internal.h"
-#include "libavutil/mem.h"
 
 #define READ_PIXELS(a, b, c)         \
     do {                             \
@@ -57,12 +54,10 @@ static av_cold int decode_init(AVCodecContext *avctx)
         av_log(avctx, AV_LOG_ERROR, "v210 needs even width\n");
         return -1;
     }
-    avctx->pix_fmt             = AV_PIX_FMT_YUV422P10;
+    avctx->pix_fmt             = PIX_FMT_YUV422P10;
     avctx->bits_per_raw_sample = 10;
 
     avctx->coded_frame         = avcodec_alloc_frame();
-    if (!avctx->coded_frame)
-        return AVERROR(ENOMEM);
 
     s->unpack_frame            = v210_planar_unpack_c;
 
@@ -72,7 +67,7 @@ static av_cold int decode_init(AVCodecContext *avctx)
     return 0;
 }
 
-static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
+static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
                         AVPacket *avpkt)
 {
     V210DecContext *s = avctx->priv_data;
@@ -89,18 +84,6 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
         stride = aligned_width * 8 / 3;
     }
 
-    if (avpkt->size < stride * avctx->height) {
-        if ((((avctx->width + 23) / 24) * 24 * 8) / 3 * avctx->height == avpkt->size) {
-            stride = avpkt->size / avctx->height;
-            if (!s->stride_warning_shown)
-                av_log(avctx, AV_LOG_WARNING, "Broken v210 with too small padding (64 byte) detected\n");
-            s->stride_warning_shown = 1;
-        } else {
-            av_log(avctx, AV_LOG_ERROR, "packet too small\n");
-            return -1;
-        }
-    }
-
     aligned_input = !((uintptr_t)psrc & 0xf) && !(stride & 0xf);
     if (aligned_input != s->aligned_input) {
         s->aligned_input = aligned_input;
@@ -111,8 +94,13 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
     if (pic->data[0])
         avctx->release_buffer(avctx, pic);
 
+    if (avpkt->size < stride * avctx->height) {
+        av_log(avctx, AV_LOG_ERROR, "packet too small\n");
+        return -1;
+    }
+
     pic->reference = 0;
-    if (ff_get_buffer(avctx, pic) < 0)
+    if (avctx->get_buffer(avctx, pic) < 0)
         return -1;
 
     y = (uint16_t*)pic->data[0];
@@ -154,7 +142,7 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
         v += pic->linesize[2] / 2 - avctx->width / 2;
     }
 
-    *got_frame      = 1;
+    *data_size = sizeof(AVFrame);
     *(AVFrame*)data = *avctx->coded_frame;
 
     return avpkt->size;
@@ -173,7 +161,7 @@ static av_cold int decode_close(AVCodecContext *avctx)
 #define V210DEC_FLAGS AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM
 static const AVOption v210dec_options[] = {
     {"custom_stride", "Custom V210 stride", offsetof(V210DecContext, custom_stride), FF_OPT_TYPE_INT,
-     {.i64 = 0}, INT_MIN, INT_MAX, V210DEC_FLAGS},
+     {.dbl = 0}, INT_MIN, INT_MAX, V210DEC_FLAGS},
     {NULL}
 };
 
@@ -187,12 +175,12 @@ static const AVClass v210dec_class = {
 AVCodec ff_v210_decoder = {
     .name           = "v210",
     .type           = AVMEDIA_TYPE_VIDEO,
-    .id             = AV_CODEC_ID_V210,
+    .id             = CODEC_ID_V210,
     .priv_data_size = sizeof(V210DecContext),
     .init           = decode_init,
     .close          = decode_close,
     .decode         = decode_frame,
     .capabilities   = CODEC_CAP_DR1,
-    .long_name      = NULL_IF_CONFIG_SMALL("Uncompressed 4:2:2 10-bit"),
+    .long_name = NULL_IF_CONFIG_SMALL("Uncompressed 4:2:2 10-bit"),
     .priv_class     = &v210dec_class,
 };

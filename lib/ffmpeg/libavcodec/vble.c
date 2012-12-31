@@ -29,8 +29,6 @@
 #include "avcodec.h"
 #include "dsputil.h"
 #include "get_bits.h"
-#include "internal.h"
-#include "mathops.h"
 
 typedef struct {
     AVCodecContext *avctx;
@@ -111,7 +109,7 @@ static void vble_restore_plane(VBLEContext *ctx, GetBitContext *gb, int plane,
     }
 }
 
-static int vble_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
+static int vble_decode_frame(AVCodecContext *avctx, void *data, int *data_size,
                              AVPacket *avpkt)
 {
     VBLEContext *ctx = avctx->priv_data;
@@ -128,13 +126,8 @@ static int vble_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
     if (pic->data[0])
         avctx->release_buffer(avctx, pic);
 
-    if (avpkt->size < 4 || avpkt->size - 4 > INT_MAX/8) {
-        av_log(avctx, AV_LOG_ERROR, "Invalid packet size\n");
-        return AVERROR_INVALIDDATA;
-    }
-
     /* Allocate buffer */
-    if (ff_get_buffer(avctx, pic) < 0) {
+    if (avctx->get_buffer(avctx, pic) < 0) {
         av_log(avctx, AV_LOG_ERROR, "Could not allocate buffer.\n");
         return AVERROR(ENOMEM);
     }
@@ -146,8 +139,10 @@ static int vble_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
     /* Version should always be 1 */
     version = AV_RL32(src);
 
-    if (version != 1)
-        av_log(avctx, AV_LOG_WARNING, "Unsupported VBLE Version: %d\n", version);
+    if (version != 1) {
+        av_log(avctx, AV_LOG_ERROR, "Unsupported VBLE Version: %d\n", version);
+        return AVERROR_INVALIDDATA;
+    }
 
     init_get_bits(&gb, src + 4, (avpkt->size - 4) * 8);
 
@@ -169,7 +164,7 @@ static int vble_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
         vble_restore_plane(ctx, &gb, 2, offset, width_uv, height_uv);
     }
 
-    *got_frame       = 1;
+    *data_size = sizeof(AVFrame);
     *(AVFrame *)data = *pic;
 
     return avpkt->size;
@@ -195,9 +190,9 @@ static av_cold int vble_decode_init(AVCodecContext *avctx)
 
     /* Stash for later use */
     ctx->avctx = avctx;
-    ff_dsputil_init(&ctx->dsp, avctx);
+    dsputil_init(&ctx->dsp, avctx);
 
-    avctx->pix_fmt = AV_PIX_FMT_YUV420P;
+    avctx->pix_fmt = PIX_FMT_YUV420P;
     avctx->bits_per_raw_sample = 8;
     avctx->coded_frame = avcodec_alloc_frame();
 
@@ -223,7 +218,7 @@ static av_cold int vble_decode_init(AVCodecContext *avctx)
 AVCodec ff_vble_decoder = {
     .name           = "vble",
     .type           = AVMEDIA_TYPE_VIDEO,
-    .id             = AV_CODEC_ID_VBLE,
+    .id             = CODEC_ID_VBLE,
     .priv_data_size = sizeof(VBLEContext),
     .init           = vble_decode_init,
     .close          = vble_decode_close,

@@ -38,7 +38,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "libavutil/internal.h"
 #include "libavutil/intreadwrite.h"
 #include "avcodec.h"
 
@@ -236,7 +235,7 @@ static av_cold int rpza_decode_init(AVCodecContext *avctx)
     RpzaContext *s = avctx->priv_data;
 
     s->avctx = avctx;
-    avctx->pix_fmt = AV_PIX_FMT_RGB555;
+    avctx->pix_fmt = PIX_FMT_RGB555;
 
     avcodec_get_frame_defaults(&s->frame);
     s->frame.data[0] = NULL;
@@ -245,7 +244,7 @@ static av_cold int rpza_decode_init(AVCodecContext *avctx)
 }
 
 static int rpza_decode_frame(AVCodecContext *avctx,
-                             void *data, int *got_frame,
+                             void *data, int *data_size,
                              AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
@@ -264,7 +263,7 @@ static int rpza_decode_frame(AVCodecContext *avctx,
 
     rpza_decode_stream(s);
 
-    *got_frame      = 1;
+    *data_size = sizeof(AVFrame);
     *(AVFrame*)data = s->frame;
 
     /* always report that the buffer was completely consumed */
@@ -284,11 +283,11 @@ static av_cold int rpza_decode_end(AVCodecContext *avctx)
 AVCodec ff_rpza_decoder = {
     .name           = "rpza",
     .type           = AVMEDIA_TYPE_VIDEO,
-    .id             = AV_CODEC_ID_RPZA,
+    .id             = CODEC_ID_RPZA,
     .priv_data_size = sizeof(RpzaContext),
     .init           = rpza_decode_init,
     .close          = rpza_decode_end,
     .decode         = rpza_decode_frame,
     .capabilities   = CODEC_CAP_DR1,
-    .long_name      = NULL_IF_CONFIG_SMALL("QuickTime video (RPZA)"),
+    .long_name = NULL_IF_CONFIG_SMALL("QuickTime video (RPZA)"),
 };

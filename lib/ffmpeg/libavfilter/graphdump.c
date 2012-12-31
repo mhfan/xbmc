@@ -21,23 +21,27 @@
 
 #include <string.h>
 
-#include "libavutil/channel_layout.h"
-#include "libavutil/bprint.h"
 #include "libavutil/pixdesc.h"
 #include "avfilter.h"
 #include "avfiltergraph.h"
 
-static int print_link_prop(AVBPrint *buf, AVFilterLink *link)
+#define BPRINTF(...) \
+    cur += snprintf(cur, buf_end - FFMIN(cur, buf_end), __VA_ARGS__)
+
+#define BPAD(c, l) \
+    do { \
+        if (cur < buf_end) memset(cur, c, FFMIN(l, buf_end - cur)); cur += l; \
+    } while (0)
+
+static int snprint_link_prop(char *buf, char *buf_end, AVFilterLink *link)
 {
-    char *format;
+    char *cur = buf, *format;
     char layout[64];
 
-    if (!buf)
-        buf = &(AVBPrint){ 0 }; /* dummy buffer */
     switch (link->type) {
         case AVMEDIA_TYPE_VIDEO:
             format = av_x_if_null(av_get_pix_fmt_name(link->format), "?");
-            av_bprintf(buf, "[%dx%d %d:%d %s]", link->w, link->h,
+            BPRINTF("[%dx%d %d:%d %s]", link->w, link->h,
                     link->sample_aspect_ratio.num,
                     link->sample_aspect_ratio.den,
                     format);
@@ -47,20 +51,23 @@ static int print_link_prop(AVBPrint *buf, AVFilterLink *link)
             av_get_channel_layout_string(layout, sizeof(layout),
                                          -1, link->channel_layout);
             format = av_x_if_null(av_get_sample_fmt_name(link->format), "?");
-            av_bprintf(buf, "[%dHz %s:%s]",
-                       (int)link->sample_rate, format, layout);
+            BPRINTF("[%dHz %s:%s:%s]",
+                    (int)link->sample_rate, format, layout,
+                    link->planar ? "planar" : "packed");
             break;
 
         default:
-            av_bprintf(buf, "?");
+            BPRINTF("?");
             break;
     }
-    return buf->len;
+    return cur - buf;
 }
 
-static void avfilter_graph_dump_to_buf(AVBPrint *buf, AVFilterGraph *graph)
+static size_t avfilter_graph_dump_to_buf(AVFilterGraph *graph,
+                                         char *buf, char *buf_end)
 {
-    unsigned i, j, x, e;
+    char *cur = buf, *e;
+    unsigned i, j, x;
 
     for (i = 0; i < graph->filter_count; i++) {
         AVFilterContext *filter = graph->filters[i];
@@ -76,23 +83,23 @@ static void avfilter_graph_dump_to_buf(AVBPrint *buf, AVFilterGraph *graph)
             unsigned ln = strlen(l->src->name) + 1 + strlen(l->srcpad->name);
             max_src_name = FFMAX(max_src_name, ln);
             max_in_name = FFMAX(max_in_name, strlen(l->dstpad->name));
-            max_in_fmt = FFMAX(max_in_fmt, print_link_prop(NULL, l));
+            max_in_fmt = FFMAX(max_in_fmt, snprint_link_prop(NULL, NULL, l));
         }
         for (j = 0; j < filter->output_count; j++) {
             AVFilterLink *l = filter->outputs[j];
             unsigned ln = strlen(l->dst->name) + 1 + strlen(l->dstpad->name);
             max_dst_name = FFMAX(max_dst_name, ln);
             max_out_name = FFMAX(max_out_name, strlen(l->srcpad->name));
-            max_out_fmt = FFMAX(max_out_fmt, print_link_prop(NULL, l));
+            max_out_fmt = FFMAX(max_out_fmt, snprint_link_prop(NULL, NULL, l));
         }
         in_indent = max_src_name + max_in_name + max_in_fmt;
         in_indent += in_indent ? 4 : 0;
         width = FFMAX(lname + 2, ltype + 4);
         height = FFMAX3(2, filter->input_count, filter->output_count);
-        av_bprint_chars(buf, ' ', in_indent);
-        av_bprintf(buf, "+");
-        av_bprint_chars(buf, '-', width);
-        av_bprintf(buf, "+\n");
+        BPAD(' ', in_indent);
+        BPRINTF("+");
+        BPAD('-', width);
+        BPRINTF("+\n");
         for (j = 0; j < height; j++) {
             unsigned in_no  = j - (height - filter->input_count ) / 2;
             unsigned out_no = j - (height - filter->output_count) / 2;
@@ -100,65 +107,65 @@ static void avfilter_graph_dump_to_buf(AVBPrint *buf, AVFilterGraph *graph)
             /* Input link */
             if (in_no < filter->input_count) {
                 AVFilterLink *l = filter->inputs[in_no];
-                e = buf->len + max_src_name + 2;
-                av_bprintf(buf, "%s:%s", l->src->name, l->srcpad->name);
-                av_bprint_chars(buf, '-', e - buf->len);
-                e = buf->len + max_in_fmt + 2 +
+                e = cur + max_src_name + 2;
+                BPRINTF("%s:%s", l->src->name, l->srcpad->name);
+                BPAD('-', e - cur);
+                e = cur + max_in_fmt + 2 +
                     max_in_name - strlen(l->dstpad->name);
-                print_link_prop(buf, l);
-                av_bprint_chars(buf, '-', e - buf->len);
-                av_bprintf(buf, "%s", l->dstpad->name);
+                cur += snprint_link_prop(cur, buf_end, l);
+                BPAD('-', e - cur);
+                BPRINTF("%s", l->dstpad->name);
             } else {
-                av_bprint_chars(buf, ' ', in_indent);
+                BPAD(' ', in_indent);
             }
 
             /* Filter */
-            av_bprintf(buf, "|");
+            BPRINTF("|");
             if (j == (height - 2) / 2) {
                 x = (width - lname) / 2;
-                av_bprintf(buf, "%*s%-*s", x, "", width - x, filter->name);
+                BPRINTF("%*s%-*s", x, "", width - x, filter->name);
             } else if (j == (height - 2) / 2 + 1) {
                 x = (width - ltype - 2) / 2;
-                av_bprintf(buf, "%*s(%s)%*s", x, "", filter->filter->name,
+                BPRINTF("%*s(%s)%*s", x, "", filter->filter->name,
                         width - ltype - 2 - x, "");
             } else {
-                av_bprint_chars(buf, ' ', width);
+                BPAD(' ', width);
             }
-            av_bprintf(buf, "|");
+            BPRINTF("|");
 
             /* Output link */
             if (out_no < filter->output_count) {
                 AVFilterLink *l = filter->outputs[out_no];
                 unsigned ln = strlen(l->dst->name) + 1 +
                               strlen(l->dstpad->name);
-                e = buf->len + max_out_name + 2;
-                av_bprintf(buf, "%s", l->srcpad->name);
-                av_bprint_chars(buf, '-', e - buf->len);
-                e = buf->len + max_out_fmt + 2 +
+                e = cur + max_out_name + 2;
+                BPRINTF("%s", l->srcpad->name);
+                BPAD('-', e - cur);
+                e = cur + max_out_fmt + 2 +
                     max_dst_name - ln;
-                print_link_prop(buf, l);
-                av_bprint_chars(buf, '-', e - buf->len);
-                av_bprintf(buf, "%s:%s", l->dst->name, l->dstpad->name);
+                cur += snprint_link_prop(cur, buf_end, l);
+                BPAD('-', e - cur);
+                BPRINTF("%s:%s", l->dst->name, l->dstpad->name);
             }
-            av_bprintf(buf, "\n");
+            BPRINTF("\n");
         }
-        av_bprint_chars(buf, ' ', in_indent);
-        av_bprintf(buf, "+");
-        av_bprint_chars(buf, '-', width);
-        av_bprintf(buf, "+\n");
-        av_bprintf(buf, "\n");
+        BPAD(' ', in_indent);
+        BPRINTF("+");
+        BPAD('-', width);
+        BPRINTF("+\n");
+        BPRINTF("\n");
     }
+    if (cur < buf_end)
+        *(cur++) = 0;
+    return cur - buf;
 }
 
 char *avfilter_graph_dump(AVFilterGraph *graph, const char *options)
 {
-    AVBPrint buf;
-    char *dump;
-
-    av_bprint_init(&buf, 0, 0);
-    avfilter_graph_dump_to_buf(&buf, graph);
-    av_bprint_init(&buf, buf.len + 1, buf.len + 1);
-    avfilter_graph_dump_to_buf(&buf, graph);
-    av_bprint_finalize(&buf, &dump);
-    return dump;
+    size_t buf_size = avfilter_graph_dump_to_buf(graph, NULL, NULL);
+    char *buf = av_malloc(buf_size);
+    if (!buf)
+        return NULL;
+    avfilter_graph_dump_to_buf(graph, buf, buf + buf_size);
+    return buf;
 }

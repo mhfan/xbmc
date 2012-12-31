@@ -19,8 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "config.h"
-#include "mlpdsp.h"
+#include "dsputil.h"
 #include "mlp.h"
 
 static void ff_mlp_filter_channel(int32_t *state, const int32_t *coeff,
@@ -56,9 +55,9 @@ static void ff_mlp_filter_channel(int32_t *state, const int32_t *coeff,
     }
 }
 
-void ff_mlpdsp_init(MLPDSPContext *c)
+void ff_mlp_init(DSPContext* c, AVCodecContext *avctx)
 {
     c->mlp_filter_channel = ff_mlp_filter_channel;
     if (ARCH_X86)
-        ff_mlpdsp_init_x86(c);
+        ff_mlp_init_x86(c, avctx);
 }

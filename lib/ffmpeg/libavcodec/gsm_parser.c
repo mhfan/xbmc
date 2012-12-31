@@ -31,7 +31,6 @@
 typedef struct GSMParseContext {
     ParseContext pc;
     int block_size;
-    int duration;
     int remaining;
 } GSMParseContext;
 
@@ -45,19 +44,10 @@ static int gsm_parse(AVCodecParserContext *s1, AVCodecContext *avctx,
 
     if (!s->block_size) {
         switch (avctx->codec_id) {
-        case AV_CODEC_ID_GSM:
-            s->block_size = GSM_BLOCK_SIZE;
-            s->duration   = GSM_FRAME_SIZE;
-            break;
-        case AV_CODEC_ID_GSM_MS:
-            s->block_size = GSM_MS_BLOCK_SIZE;
-            s->duration   = GSM_FRAME_SIZE * 2;
-            break;
+        case CODEC_ID_GSM:    s->block_size = GSM_BLOCK_SIZE;    break;
+        case CODEC_ID_GSM_MS: s->block_size = GSM_MS_BLOCK_SIZE; break;
         default:
-            *poutbuf      = buf;
-            *poutbuf_size = buf_size;
-            av_log(avctx, AV_LOG_ERROR, "Invalid codec_id\n");
-            return buf_size;
+            return AVERROR(EINVAL);
         }
     }
 
@@ -76,16 +66,13 @@ static int gsm_parse(AVCodecParserContext *s1, AVCodecContext *avctx,
         *poutbuf_size = 0;
         return buf_size;
     }
-
-    s1->duration = s->duration;
-
     *poutbuf      = buf;
     *poutbuf_size = buf_size;
     return next;
 }
 
 AVCodecParser ff_gsm_parser = {
-    .codec_ids      = { AV_CODEC_ID_GSM, AV_CODEC_ID_GSM_MS },
+    .codec_ids      = { CODEC_ID_GSM, CODEC_ID_GSM_MS },
     .priv_data_size = sizeof(GSMParseContext),
     .parser_parse   = gsm_parse,
     .parser_close   = ff_parse_close,

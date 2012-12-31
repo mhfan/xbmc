@@ -23,16 +23,27 @@
 
 /**
  * @file
- * @ingroup lpp
- * external API header
+ * @brief
+ *     external postprocessing API
  */
 
-/**
- * @defgroup lpp Libpostproc
- * @{
- */
+#include "libavutil/avutil.h"
 
-#include "libpostproc/version.h"
+#ifndef LIBPOSTPROC_VERSION_MAJOR
+#define LIBPOSTPROC_VERSION_MAJOR 52
+#define LIBPOSTPROC_VERSION_MINOR  0
+#define LIBPOSTPROC_VERSION_MICRO 100
+#endif
+
+#define LIBPOSTPROC_VERSION_INT AV_VERSION_INT(LIBPOSTPROC_VERSION_MAJOR, \
+                                               LIBPOSTPROC_VERSION_MINOR, \
+                                               LIBPOSTPROC_VERSION_MICRO)
+#define LIBPOSTPROC_VERSION     AV_VERSION(LIBPOSTPROC_VERSION_MAJOR, \
+                                           LIBPOSTPROC_VERSION_MINOR, \
+                                           LIBPOSTPROC_VERSION_MICRO)
+#define LIBPOSTPROC_BUILD       LIBPOSTPROC_VERSION_INT
+
+#define LIBPOSTPROC_IDENT       "postproc" AV_STRINGIFY(LIBPOSTPROC_VERSION)
 
 /**
  * Return the LIBPOSTPROC_VERSION_INT constant.
@@ -89,7 +100,6 @@ void pp_free_context(pp_context *ppContext);
 #define PP_CPU_CAPS_MMX2  0x20000000
 #define PP_CPU_CAPS_3DNOW 0x40000000
 #define PP_CPU_CAPS_ALTIVEC 0x10000000
-#define PP_CPU_CAPS_AUTO  0x00080000
 
 #define PP_FORMAT         0x00000008
 #define PP_FORMAT_420    (0x00000011|PP_FORMAT)
@@ -98,9 +108,5 @@ void pp_free_context(pp_context *ppContext);
 #define PP_FORMAT_444    (0x00000000|PP_FORMAT)
 
 #define PP_PICT_TYPE_QP2  0x00000010 ///< MPEG2 style QScale
-
-/**
- * @}
- */
 
 #endif /* POSTPROC_POSTPROCESS_H */

@@ -35,11 +35,11 @@
 
 #include "avcodec.h"
 
-typedef struct ADXChannelState {
+typedef struct {
     int s1,s2;
 } ADXChannelState;
 
-typedef struct ADXContext {
+typedef struct {
     AVFrame frame;
     int channels;
     ADXChannelState prev[2];

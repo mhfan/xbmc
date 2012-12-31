@@ -38,9 +38,10 @@
  *  @param[in]   plane        pointer to the descriptor of the plane being processed
  *  @param[out]  dst          pointer to the destination buffer
  *  @param[in]   dst_pitch    pitch of the destination buffer
+ *  @param[in]   num_bands    number of wavelet bands to be processed
  */
 void ff_ivi_recompose53(const IVIPlaneDesc *plane, uint8_t *dst,
-                        const int dst_pitch);
+                        const int dst_pitch, const int num_bands);
 
 /**
  *  Haar wavelet recomposition filter for Indeo 4
@@ -48,9 +49,10 @@ void ff_ivi_recompose53(const IVIPlaneDesc *plane, uint8_t *dst,
  *  @param[in]  plane        pointer to the descriptor of the plane being processed
  *  @param[out] dst          pointer to the destination buffer
  *  @param[in]  dst_pitch    pitch of the destination buffer
+ *  @param[in]  num_bands    number of wavelet bands to be processed
  */
 void ff_ivi_recompose_haar(const IVIPlaneDesc *plane, uint8_t *dst,
-                           const int dst_pitch);
+                           const int dst_pitch, const int num_bands);
 
 /**
  *  two-dimensional inverse Haar 8x8 transform for Indeo 4

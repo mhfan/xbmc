@@ -20,10 +20,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <string.h>
-
 #include "libavutil/cpu.h"
-#include "libavutil/mem.h"
 #include "libavcodec/dsputil.h"
 #include "dsputil_altivec.h"
 
@@ -137,7 +134,16 @@ static long check_dcbzl_effect(void)
 }
 #endif
 
-void ff_dsputil_init_ppc(DSPContext* c, AVCodecContext *avctx)
+static void prefetch_ppc(void *mem, int stride, int h)
+{
+    register const uint8_t *p = mem;
+    do {
+        __asm__ volatile ("dcbt 0,%0" : : "r" (p));
+        p+= stride;
+    } while(--h);
+}
+
+void dsputil_init_ppc(DSPContext* c, AVCodecContext *avctx)
 {
     const int high_bit_depth = avctx->bits_per_raw_sample > 8;
     int mm_flags = av_get_cpu_flags();
@@ -150,6 +156,7 @@ void ff_dsputil_init_ppc(DSPContext* c, AVCodecContext *avctx)
     }
 
     // Common optimizations whether AltiVec is available or not
+    c->prefetch = prefetch_ppc;
     if (!high_bit_depth) {
     switch (check_dcbzl_effect()) {
         case 32:
@@ -164,27 +171,33 @@ void ff_dsputil_init_ppc(DSPContext* c, AVCodecContext *avctx)
     }
 
 #if HAVE_ALTIVEC
-    if(CONFIG_H264_DECODER) ff_dsputil_h264_init_ppc(c, avctx);
+    if(CONFIG_H264_DECODER) dsputil_h264_init_ppc(c, avctx);
 
     if (mm_flags & AV_CPU_FLAG_ALTIVEC) {
-        ff_dsputil_init_altivec(c, avctx);
-        ff_float_init_altivec(c, avctx);
-        ff_int_init_altivec(c, avctx);
-        c->gmc1 = ff_gmc1_altivec;
+        dsputil_init_altivec(c, avctx);
+        float_init_altivec(c, avctx);
+        int_init_altivec(c, avctx);
+        c->gmc1 = gmc1_altivec;
 
 #if CONFIG_ENCODERS
         if (avctx->bits_per_raw_sample <= 8 &&
             (avctx->dct_algo == FF_DCT_AUTO ||
              avctx->dct_algo == FF_DCT_ALTIVEC)) {
-            c->fdct = ff_fdct_altivec;
+            c->fdct = fdct_altivec;
         }
 #endif //CONFIG_ENCODERS
 
         if (avctx->lowres == 0 && avctx->bits_per_raw_sample <= 8) {
             if ((avctx->idct_algo == FF_IDCT_AUTO) ||
                 (avctx->idct_algo == FF_IDCT_ALTIVEC)) {
-                c->idct_put = ff_idct_put_altivec;
-                c->idct_add = ff_idct_add_altivec;
+                c->idct_put = idct_put_altivec;
+                c->idct_add = idct_add_altivec;
+                c->idct_permutation_type = FF_TRANSPOSE_IDCT_PERM;
+            }else if((CONFIG_VP3_DECODER || CONFIG_VP5_DECODER || CONFIG_VP6_DECODER) &&
+                     avctx->idct_algo==FF_IDCT_VP3){
+                c->idct_put = ff_vp3_idct_put_altivec;
+                c->idct_add = ff_vp3_idct_add_altivec;
+                c->idct     = ff_vp3_idct_altivec;
                 c->idct_permutation_type = FF_TRANSPOSE_IDCT_PERM;
             }
         }

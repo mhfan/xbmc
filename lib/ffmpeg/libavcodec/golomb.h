@@ -107,8 +107,7 @@ static inline int get_ue_golomb_31(GetBitContext *gb){
     return ff_ue_golomb_vlc_code[buf];
 }
 
-static inline unsigned svq3_get_ue_golomb(GetBitContext *gb)
-{
+static inline int svq3_get_ue_golomb(GetBitContext *gb){
     uint32_t buf;
 
     OPEN_READER(re, gb);
@@ -122,7 +121,7 @@ static inline unsigned svq3_get_ue_golomb(GetBitContext *gb)
 
         return ff_interleaved_ue_golomb_vlc_code[buf];
     }else{
-        unsigned ret = 1;
+        int ret = 1;
 
         do {
             buf >>= 32 - 8;
@@ -147,7 +146,7 @@ static inline unsigned svq3_get_ue_golomb(GetBitContext *gb)
  * read unsigned truncated exp golomb code.
  */
 static inline int get_te0_golomb(GetBitContext *gb, int range){
-    av_assert2(range >= 1);
+    assert(range >= 1);
 
     if(range==1)      return 0;
     else if(range==2) return get_bits1(gb)^1;
@@ -158,7 +157,7 @@ static inline int get_te0_golomb(GetBitContext *gb, int range){
  * read unsigned truncated exp golomb code.
  */
 static inline int get_te_golomb(GetBitContext *gb, int range){
-    av_assert2(range >= 1);
+    assert(range >= 1);
 
     if(range==2) return get_bits1(gb)^1;
     else         return get_ue_golomb(gb);
@@ -375,9 +374,7 @@ static inline int get_sr_golomb_shorten(GetBitContext* gb, int k)
 
 #ifdef TRACE
 
-static inline int get_ue(GetBitContext *s, const char *file, const char *func,
-                         int line)
-{
+static inline int get_ue(GetBitContext *s, char *file, const char *func, int line){
     int show= show_bits(s, 24);
     int pos= get_bits_count(s);
     int i= get_ue_golomb(s);
@@ -391,9 +388,7 @@ static inline int get_ue(GetBitContext *s, const char *file, const char *func,
     return i;
 }
 
-static inline int get_se(GetBitContext *s, const char *file, const char *func,
-                         int line)
-{
+static inline int get_se(GetBitContext *s, char *file, const char *func, int line){
     int show= show_bits(s, 24);
     int pos= get_bits_count(s);
     int i= get_se_golomb(s);
@@ -434,7 +429,7 @@ static inline int get_te(GetBitContext *s, int r, char *file, const char *func, 
 static inline void set_ue_golomb(PutBitContext *pb, int i){
     int e;
 
-    av_assert2(i>=0);
+    assert(i>=0);
 
 #if 0
     if(i=0){
@@ -455,8 +450,8 @@ static inline void set_ue_golomb(PutBitContext *pb, int i){
  * write truncated unsigned exp golomb code.
  */
 static inline void set_te_golomb(PutBitContext *pb, int i, int range){
-    av_assert2(range >= 1);
-    av_assert2(i<=range);
+    assert(range >= 1);
+    assert(i<=range);
 
     if(range==2) put_bits(pb, 1, i^1);
     else         set_ue_golomb(pb, i);
@@ -466,6 +461,8 @@ static inline void set_te_golomb(PutBitContext *pb, int i, int range){
  * write signed exp golomb code. 16 bits at most.
  */
 static inline void set_se_golomb(PutBitContext *pb, int i){
+//    if (i>32767 || i<-32767)
+//        av_log(NULL,AV_LOG_ERROR,"value out of range %d\n", i);
 #if 0
     if(i<=0) i= -2*i;
     else     i=  2*i-1;
@@ -485,7 +482,7 @@ static inline void set_se_golomb(PutBitContext *pb, int i){
 static inline void set_ur_golomb(PutBitContext *pb, int i, int k, int limit, int esc_len){
     int e;
 
-    av_assert2(i>=0);
+    assert(i>=0);
 
     e= i>>k;
     if(e<limit){
@@ -501,7 +498,7 @@ static inline void set_ur_golomb(PutBitContext *pb, int i, int k, int limit, int
 static inline void set_ur_golomb_jpegls(PutBitContext *pb, int i, int k, int limit, int esc_len){
     int e;
 
-    av_assert2(i>=0);
+    assert(i>=0);
 
     e= (i>>k) + 1;
     if(e<limit){

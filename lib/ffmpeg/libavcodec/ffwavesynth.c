@@ -22,8 +22,6 @@
 #include "libavutil/intreadwrite.h"
 #include "libavutil/log.h"
 #include "avcodec.h"
-#include "internal.h"
-
 
 #define SIN_BITS 14
 #define WS_MAX_CHANNELS 32
@@ -444,7 +442,7 @@ static int wavesynth_decode(AVCodecContext *avc, void *rframe, int *rgot_frame,
     if (duration <= 0)
         return AVERROR(EINVAL);
     ws->frame.nb_samples = duration;
-    r = ff_get_buffer(avc, &ws->frame);
+    r = avc->get_buffer(avc, &ws->frame);
     if (r < 0)
         return r;
     pcm = (int16_t *)ws->frame.data[0];
@@ -474,7 +472,7 @@ static av_cold int wavesynth_close(AVCodecContext *avc)
 AVCodec ff_ffwavesynth_decoder = {
     .name           = "wavesynth",
     .type           = AVMEDIA_TYPE_AUDIO,
-    .id             = AV_CODEC_ID_FFWAVESYNTH,
+    .id             = CODEC_ID_FFWAVESYNTH,
     .priv_data_size = sizeof(struct wavesynth_context),
     .init           = wavesynth_init,
     .close          = wavesynth_close,

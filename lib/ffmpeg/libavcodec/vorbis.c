@@ -66,8 +66,10 @@ int ff_vorbis_len2vlc(uint8_t *bits, uint32_t *codes, unsigned num)
 
     for (p = 0; (bits[p] == 0) && (p < num); ++p)
         ;
-    if (p == num)
+    if (p == num) {
+//        av_log(vc->avccontext, AV_LOG_INFO, "An empty codebook. Heh?! \n");
         return 0;
+    }
 
     codes[p] = 0;
     if (bits[p] > 32)
@@ -121,8 +123,7 @@ int ff_vorbis_len2vlc(uint8_t *bits, uint32_t *codes, unsigned num)
     return 0;
 }
 
-int ff_vorbis_ready_floor1_list(AVCodecContext *avccontext,
-                                vorbis_floor1_entry *list, int values)
+void ff_vorbis_ready_floor1_list(vorbis_floor1_entry * list, int values)
 {
     int i;
     list[0].sort = 0;
@@ -146,11 +147,6 @@ int ff_vorbis_ready_floor1_list(AVCodecContext *avccontext,
     for (i = 0; i < values - 1; i++) {
         int j;
         for (j = i + 1; j < values; j++) {
-            if (list[i].x == list[j].x) {
-                av_log(avccontext, AV_LOG_ERROR,
-                       "Duplicate value found in floor 1 X coordinates\n");
-                return AVERROR_INVALIDDATA;
-            }
             if (list[list[i].sort].x > list[list[j].sort].x) {
                 int tmp = list[i].sort;
                 list[i].sort = list[j].sort;
@@ -158,7 +154,6 @@ int ff_vorbis_ready_floor1_list(AVCodecContext *avccontext,
             }
         }
     }
-    return 0;
 }
 
 static inline void render_line_unrolled(intptr_t x, int y, int x1,

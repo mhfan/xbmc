@@ -20,7 +20,7 @@
 
 /*
  * To create a simple file for smooth streaming:
- * ffmpeg <normal input/transcoding options> -movflags frag_keyframe foo.ismv
+ * avconv <normal input/transcoding options> -movflags frag_keyframe foo.ismv
  * ismindex -n foo foo.ismv
  * This step creates foo.ism and foo.ismc that is required by IIS for
  * serving it.
@@ -36,8 +36,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #ifdef _WIN32
-#include <direct.h>
-#define mkdir(a, b) _mkdir(a)
+#include <io.h>
+#define mkdir(a, b) mkdir(a)
 #endif
 
 #include "libavformat/avformat.h"
@@ -209,14 +209,10 @@ static int read_mfra(struct VideoFiles *files, int start_index,
     avio_seek(f, avio_size(f) - 4, SEEK_SET);
     mfra_size = avio_rb32(f);
     avio_seek(f, -mfra_size, SEEK_CUR);
-    if (avio_rb32(f) != mfra_size) {
-        err = AVERROR_INVALIDDATA;
+    if (avio_rb32(f) != mfra_size)
         goto fail;
-    }
-    if (avio_rb32(f) != MKBETAG('m', 'f', 'r', 'a')) {
-        err = AVERROR_INVALIDDATA;
+    if (avio_rb32(f) != MKBETAG('m', 'f', 'r', 'a'))
         goto fail;
-    }
     while (!read_tfra(files, start_index, f)) {
         /* Empty */
     }
@@ -227,8 +223,6 @@ static int read_mfra(struct VideoFiles *files, int start_index,
 fail:
     if (f)
         avio_close(f);
-    if (err)
-        fprintf(stderr, "Unable to read the MFRA atom in %s\n", file);
     return err;
 }
 
@@ -248,13 +242,10 @@ static int get_video_private_data(struct VideoFile *vf, AVCodecContext *codec)
     uint16_t sps_size, pps_size;
     int err = AVERROR(EINVAL);
 
-    if (codec->codec_id == AV_CODEC_ID_VC1)
+    if (codec->codec_id == CODEC_ID_VC1)
         return get_private_data(vf, codec);
 
-    if (avio_open_dyn_buf(&io) < 0)  {
-        err = AVERROR(ENOMEM);
-        goto fail;
-    }
+    avio_open_dyn_buf(&io);
     if (codec->extradata_size < 11 || codec->extradata[0] != 1)
         goto fail;
     sps_size = AV_RB16(&codec->extradata[6]);
@@ -335,11 +326,11 @@ static int handle_file(struct VideoFiles *files, const char *file, int split)
             files->nb_audio_files++;
             vf->channels    = st->codec->channels;
             vf->sample_rate = st->codec->sample_rate;
-            if (st->codec->codec_id == AV_CODEC_ID_AAC) {
+            if (st->codec->codec_id == CODEC_ID_AAC) {
                 vf->fourcc    = "AACL";
                 vf->tag       = 255;
                 vf->blocksize = 4;
-            } else if (st->codec->codec_id == AV_CODEC_ID_WMAPRO) {
+            } else if (st->codec->codec_id == CODEC_ID_WMAPRO) {
                 vf->fourcc    = "WMAP";
                 vf->tag       = st->codec->codec_tag;
                 vf->blocksize = st->codec->block_align;
@@ -352,9 +343,9 @@ static int handle_file(struct VideoFiles *files, const char *file, int split)
             files->nb_video_files++;
             vf->width  = st->codec->width;
             vf->height = st->codec->height;
-            if (st->codec->codec_id == AV_CODEC_ID_H264)
+            if (st->codec->codec_id == CODEC_ID_H264)
                 vf->fourcc = "H264";
-            else if (st->codec->codec_id == AV_CODEC_ID_VC1)
+            else if (st->codec->codec_id == CODEC_ID_VC1)
                 vf->fourcc = "WVC1";
             get_video_private_data(vf, st->codec);
         }
@@ -364,7 +355,7 @@ static int handle_file(struct VideoFiles *files, const char *file, int split)
 
     avformat_close_input(&ctx);
 
-    err = read_mfra(files, orig_files, file, split);
+    read_mfra(files, orig_files, file, split);
 
 fail:
     if (ctx)
@@ -429,7 +420,6 @@ static void output_client_manifest(struct VideoFiles *files,
                  "Duration=\"%"PRId64 "\">\n", files->duration * 10);
     if (files->video_file >= 0) {
         struct VideoFile *vf = files->files[files->video_file];
-        struct VideoFile *first_vf = vf;
         int index = 0;
         fprintf(out,
                 "\t<StreamIndex Type=\"video\" QualityLevels=\"%d\" "
@@ -449,26 +439,15 @@ static void output_client_manifest(struct VideoFiles *files,
                 fprintf(out, "%02X", vf->codec_private[j]);
             fprintf(out, "\" />\n");
             index++;
-            if (vf->chunks != first_vf->chunks)
-                fprintf(stderr, "Mismatched number of video chunks in %s and %s\n",
-                        vf->name, first_vf->name);
         }
-        vf = first_vf;
-        for (i = 0; i < vf->chunks; i++) {
-            for (j = files->video_file + 1; j < files->nb_files; j++) {
-                if (files->files[j]->is_video &&
-                    vf->offsets[i].duration != files->files[j]->offsets[i].duration)
-                    fprintf(stderr, "Mismatched duration of video chunk %d in %s and %s\n",
-                            i, vf->name, files->files[j]->name);
-            }
+        vf = files->files[files->video_file];
+        for (i = 0; i < vf->chunks; i++)
             fprintf(out, "\t\t<c n=\"%d\" d=\"%d\" />\n", i,
                     vf->offsets[i].duration);
-        }
         fprintf(out, "\t</StreamIndex>\n");
     }
     if (files->audio_file >= 0) {
         struct VideoFile *vf = files->files[files->audio_file];
-        struct VideoFile *first_vf = vf;
         int index = 0;
         fprintf(out,
                 "\t<StreamIndex Type=\"audio\" QualityLevels=\"%d\" "
@@ -490,21 +469,11 @@ static void output_client_manifest(struct VideoFiles *files,
                 fprintf(out, "%02X", vf->codec_private[j]);
             fprintf(out, "\" />\n");
             index++;
-            if (vf->chunks != first_vf->chunks)
-                fprintf(stderr, "Mismatched number of audio chunks in %s and %s\n",
-                        vf->name, first_vf->name);
         }
-        vf = first_vf;
-        for (i = 0; i < vf->chunks; i++) {
-            for (j = files->audio_file + 1; j < files->nb_files; j++) {
-                if (files->files[j]->is_audio &&
-                    vf->offsets[i].duration != files->files[j]->offsets[i].duration)
-                    fprintf(stderr, "Mismatched duration of audio chunk %d in %s and %s\n",
-                            i, vf->name, files->files[j]->name);
-            }
+        vf = files->files[files->audio_file];
+        for (i = 0; i < vf->chunks; i++)
             fprintf(out, "\t\t<c n=\"%d\" d=\"%d\" />\n",
                     i, vf->offsets[i].duration);
-        }
         fprintf(out, "\t</StreamIndex>\n");
     }
     fprintf(out, "</SmoothStreamingMedia>\n");
@@ -540,8 +509,7 @@ int main(int argc, char **argv)
         } else if (argv[i][0] == '-') {
             return usage(argv[0], 1);
         } else {
-            if (handle_file(&vf, argv[i], split))
-                return 1;
+            handle_file(&vf, argv[i], split);
         }
     }
     if (!vf.nb_files || (!basename && !split))

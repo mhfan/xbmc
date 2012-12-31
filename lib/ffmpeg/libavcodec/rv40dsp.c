@@ -27,8 +27,6 @@
 #include "avcodec.h"
 #include "dsputil.h"
 #include "rv34dsp.h"
-#include "libavutil/avassert.h"
-#include "libavutil/common.h"
 
 #define RV40_LOWPASS(OPNAME, OP) \
 static av_unused void OPNAME ## rv40_qpel8_h_lowpass(uint8_t *dst, uint8_t *src, int dstStride, int srcStride,\
@@ -207,7 +205,7 @@ static void OPNAME ## rv40_chroma_mc4_c(uint8_t *dst/*align 8*/, uint8_t *src/*a
     int i;\
     int bias = rv40_bias[y>>1][x>>1];\
     \
-    av_assert2(x<8 && y<8 && x>=0 && y>=0);\
+    assert(x<8 && y<8 && x>=0 && y>=0);\
 \
     if(D){\
         for(i = 0; i < h; i++){\
@@ -240,7 +238,7 @@ static void OPNAME ## rv40_chroma_mc8_c(uint8_t *dst/*align 8*/, uint8_t *src/*a
     int i;\
     int bias = rv40_bias[y>>1][x>>1];\
     \
-    av_assert2(x<8 && y<8 && x>=0 && y>=0);\
+    assert(x<8 && y<8 && x>=0 && y>=0);\
 \
     if(D){\
         for(i = 0; i < h; i++){\
@@ -280,25 +278,13 @@ RV40_CHROMA_MC(put_, op_put)
 RV40_CHROMA_MC(avg_, op_avg)
 
 #define RV40_WEIGHT_FUNC(size) \
-static void rv40_weight_func_rnd_ ## size (uint8_t *dst, uint8_t *src1, uint8_t *src2, int w1, int w2, ptrdiff_t stride)\
+static void rv40_weight_func_ ## size (uint8_t *dst, uint8_t *src1, uint8_t *src2, int w1, int w2, int stride)\
 {\
     int i, j;\
 \
     for (j = 0; j < size; j++) {\
         for (i = 0; i < size; i++)\
             dst[i] = (((w2 * src1[i]) >> 9) + ((w1 * src2[i]) >> 9) + 0x10) >> 5;\
-        src1 += stride;\
-        src2 += stride;\
-        dst  += stride;\
-    }\
-}\
-static void rv40_weight_func_nornd_ ## size (uint8_t *dst, uint8_t *src1, uint8_t *src2, int w1, int w2, ptrdiff_t stride)\
-{\
-    int i, j;\
-\
-    for (j = 0; j < size; j++) {\
-        for (i = 0; i < size; i++)\
-            dst[i] = (w2 * src1[i] + w1 * src2[i] + 0x10) >> 5;\
         src1 += stride;\
         src2 += stride;\
         dst  += stride;\
@@ -330,7 +316,7 @@ static const uint8_t rv40_dither_r[16] = {
  */
 static av_always_inline void rv40_weak_loop_filter(uint8_t *src,
                                                    const int step,
-                                                   const ptrdiff_t stride,
+                                                   const int stride,
                                                    const int filter_p1,
                                                    const int filter_q1,
                                                    const int alpha,
@@ -376,7 +362,7 @@ static av_always_inline void rv40_weak_loop_filter(uint8_t *src,
     }
 }
 
-static void rv40_h_weak_loop_filter(uint8_t *src, const ptrdiff_t stride,
+static void rv40_h_weak_loop_filter(uint8_t *src, const int stride,
                                     const int filter_p1, const int filter_q1,
                                     const int alpha, const int beta,
                                     const int lim_p0q0, const int lim_q1,
@@ -386,7 +372,7 @@ static void rv40_h_weak_loop_filter(uint8_t *src, const ptrdiff_t stride,
                           alpha, beta, lim_p0q0, lim_q1, lim_p1);
 }
 
-static void rv40_v_weak_loop_filter(uint8_t *src, const ptrdiff_t stride,
+static void rv40_v_weak_loop_filter(uint8_t *src, const int stride,
                                     const int filter_p1, const int filter_q1,
                                     const int alpha, const int beta,
                                     const int lim_p0q0, const int lim_q1,
@@ -398,7 +384,7 @@ static void rv40_v_weak_loop_filter(uint8_t *src, const ptrdiff_t stride,
 
 static av_always_inline void rv40_strong_loop_filter(uint8_t *src,
                                                      const int step,
-                                                     const ptrdiff_t stride,
+                                                     const int stride,
                                                      const int alpha,
                                                      const int lims,
                                                      const int dmode,
@@ -454,14 +440,14 @@ static av_always_inline void rv40_strong_loop_filter(uint8_t *src,
     }
 }
 
-static void rv40_h_strong_loop_filter(uint8_t *src, const ptrdiff_t stride,
+static void rv40_h_strong_loop_filter(uint8_t *src, const int stride,
                                       const int alpha, const int lims,
                                       const int dmode, const int chroma)
 {
     rv40_strong_loop_filter(src, stride, 1, alpha, lims, dmode, chroma);
 }
 
-static void rv40_v_strong_loop_filter(uint8_t *src, const ptrdiff_t stride,
+static void rv40_v_strong_loop_filter(uint8_t *src, const int stride,
                                       const int alpha, const int lims,
                                       const int dmode, const int chroma)
 {
@@ -469,7 +455,7 @@ static void rv40_v_strong_loop_filter(uint8_t *src, const ptrdiff_t stride,
 }
 
 static av_always_inline int rv40_loop_filter_strength(uint8_t *src,
-                                                      int step, ptrdiff_t stride,
+                                                      int step, int stride,
                                                       int beta, int beta2,
                                                       int edge,
                                                       int *p1, int *q1)
@@ -504,14 +490,14 @@ static av_always_inline int rv40_loop_filter_strength(uint8_t *src,
     return strong0 && strong1;
 }
 
-static int rv40_h_loop_filter_strength(uint8_t *src, ptrdiff_t stride,
+static int rv40_h_loop_filter_strength(uint8_t *src, int stride,
                                        int beta, int beta2, int edge,
                                        int *p1, int *q1)
 {
     return rv40_loop_filter_strength(src, stride, 1, beta, beta2, edge, p1, q1);
 }
 
-static int rv40_v_loop_filter_strength(uint8_t *src, ptrdiff_t stride,
+static int rv40_v_loop_filter_strength(uint8_t *src, int stride,
                                        int beta, int beta2, int edge,
                                        int *p1, int *q1)
 {
@@ -592,10 +578,8 @@ av_cold void ff_rv40dsp_init(RV34DSPContext *c, DSPContext* dsp) {
     c->avg_chroma_pixels_tab[0] = avg_rv40_chroma_mc8_c;
     c->avg_chroma_pixels_tab[1] = avg_rv40_chroma_mc4_c;
 
-    c->rv40_weight_pixels_tab[0][0] = rv40_weight_func_rnd_16;
-    c->rv40_weight_pixels_tab[0][1] = rv40_weight_func_rnd_8;
-    c->rv40_weight_pixels_tab[1][0] = rv40_weight_func_nornd_16;
-    c->rv40_weight_pixels_tab[1][1] = rv40_weight_func_nornd_8;
+    c->rv40_weight_pixels_tab[0] = rv40_weight_func_16;
+    c->rv40_weight_pixels_tab[1] = rv40_weight_func_8;
 
     c->rv40_weak_loop_filter[0]     = rv40_h_weak_loop_filter;
     c->rv40_weak_loop_filter[1]     = rv40_v_weak_loop_filter;
@@ -604,8 +588,8 @@ av_cold void ff_rv40dsp_init(RV34DSPContext *c, DSPContext* dsp) {
     c->rv40_loop_filter_strength[0] = rv40_h_loop_filter_strength;
     c->rv40_loop_filter_strength[1] = rv40_v_loop_filter_strength;
 
-    if (ARCH_X86)
+    if (HAVE_MMX)
         ff_rv40dsp_init_x86(c, dsp);
-    if (ARCH_ARM)
-        ff_rv40dsp_init_arm(c, dsp);
+    if (HAVE_NEON)
+        ff_rv40dsp_init_neon(c, dsp);
 }

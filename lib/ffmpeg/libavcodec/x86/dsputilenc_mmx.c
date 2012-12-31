@@ -23,15 +23,12 @@
  */
 
 #include "libavutil/cpu.h"
-#include "libavutil/x86/asm.h"
-#include "libavutil/x86/cpu.h"
+#include "libavutil/x86_cpu.h"
 #include "libavcodec/dsputil.h"
 #include "libavcodec/mpegvideo.h"
 #include "libavcodec/mathops.h"
 #include "dsputil_mmx.h"
 
-
-#if HAVE_INLINE_ASM
 
 static void get_pixels_mmx(DCTELEM *block, const uint8_t *pixels, int line_size)
 {
@@ -326,6 +323,8 @@ static int sse16_mmx(void *v, uint8_t * pix1, uint8_t * pix2, int line_size, int
     return tmp;
 }
 
+int ff_sse16_sse2(void *v, uint8_t * pix1, uint8_t * pix2, int line_size, int h);
+
 static int hf_noise8_mmx(uint8_t * pix1, int line_size, int h) {
     int tmp;
   __asm__ volatile (
@@ -589,8 +588,8 @@ static int nsse8_mmx(void *p, uint8_t * pix1, uint8_t * pix2, int line_size, int
 static int vsad_intra16_mmx(void *v, uint8_t * pix, uint8_t * dummy, int line_size, int h) {
     int tmp;
 
-    av_assert2( (((int)pix) & 7) == 0);
-    av_assert2((line_size &7) ==0);
+    assert( (((int)pix) & 7) == 0);
+    assert((line_size &7) ==0);
 
 #define SUM(in0, in1, out0, out1) \
       "movq (%0), %%mm2\n"\
@@ -647,13 +646,11 @@ static int vsad_intra16_mmx(void *v, uint8_t * pix, uint8_t * dummy, int line_si
 }
 #undef SUM
 
-static int vsad_intra16_mmxext(void *v, uint8_t *pix, uint8_t *dummy,
-                               int line_size, int h)
-{
+static int vsad_intra16_mmx2(void *v, uint8_t * pix, uint8_t * dummy, int line_size, int h) {
     int tmp;
 
-    av_assert2( (((int)pix) & 7) == 0);
-    av_assert2((line_size &7) ==0);
+    assert( (((int)pix) & 7) == 0);
+    assert((line_size &7) ==0);
 
 #define SUM(in0, in1, out0, out1) \
       "movq (%0), " #out0 "\n"\
@@ -692,9 +689,9 @@ static int vsad_intra16_mmxext(void *v, uint8_t *pix, uint8_t *dummy,
 static int vsad16_mmx(void *v, uint8_t * pix1, uint8_t * pix2, int line_size, int h) {
     int tmp;
 
-    av_assert2( (((int)pix1) & 7) == 0);
-    av_assert2( (((int)pix2) & 7) == 0);
-    av_assert2((line_size &7) ==0);
+    assert( (((int)pix1) & 7) == 0);
+    assert( (((int)pix2) & 7) == 0);
+    assert((line_size &7) ==0);
 
 #define SUM(in0, in1, out0, out1) \
       "movq (%0),%%mm2\n"\
@@ -767,14 +764,12 @@ static int vsad16_mmx(void *v, uint8_t * pix1, uint8_t * pix2, int line_size, in
 }
 #undef SUM
 
-static int vsad16_mmxext(void *v, uint8_t *pix1, uint8_t *pix2,
-                         int line_size, int h)
-{
+static int vsad16_mmx2(void *v, uint8_t * pix1, uint8_t * pix2, int line_size, int h) {
     int tmp;
 
-    av_assert2( (((int)pix1) & 7) == 0);
-    av_assert2( (((int)pix2) & 7) == 0);
-    av_assert2((line_size &7) ==0);
+    assert( (((int)pix1) & 7) == 0);
+    assert( (((int)pix2) & 7) == 0);
+    assert((line_size &7) ==0);
 
 #define SUM(in0, in1, out0, out1) \
       "movq (%0)," #out0 "\n"\
@@ -826,9 +821,8 @@ static int vsad16_mmxext(void *v, uint8_t *pix1, uint8_t *pix2,
 }
 #undef SUM
 
-static void diff_bytes_mmx(uint8_t *dst, const uint8_t *src1, const uint8_t *src2, int w){
+static void diff_bytes_mmx(uint8_t *dst, uint8_t *src1, uint8_t *src2, int w){
     x86_reg i=0;
-    if(w>=16)
     __asm__ volatile(
         "1:                             \n\t"
         "movq  (%2, %0), %%mm0          \n\t"
@@ -849,17 +843,13 @@ static void diff_bytes_mmx(uint8_t *dst, const uint8_t *src1, const uint8_t *src
         dst[i+0] = src1[i+0]-src2[i+0];
 }
 
-static void sub_hfyu_median_prediction_mmxext(uint8_t *dst, const uint8_t *src1,
-                                              const uint8_t *src2, int w,
-                                              int *left, int *left_top)
-{
+static void sub_hfyu_median_prediction_mmx2(uint8_t *dst, const uint8_t *src1, const uint8_t *src2, int w, int *left, int *left_top){
     x86_reg i=0;
     uint8_t l, lt;
 
     __asm__ volatile(
-        "movq  (%1, %0), %%mm0          \n\t" // LT
-        "psllq $8, %%mm0                \n\t"
         "1:                             \n\t"
+        "movq  -1(%1, %0), %%mm0        \n\t" // LT
         "movq  (%1, %0), %%mm1          \n\t" // T
         "movq  -1(%2, %0), %%mm2        \n\t" // L
         "movq  (%2, %0), %%mm3          \n\t" // X
@@ -874,7 +864,6 @@ static void sub_hfyu_median_prediction_mmxext(uint8_t *dst, const uint8_t *src1,
         "psubb %%mm4, %%mm3             \n\t" // dst - pred
         "movq %%mm3, (%3, %0)           \n\t"
         "add $8, %0                     \n\t"
-        "movq -1(%1, %0), %%mm0         \n\t" // LT
         "cmp %4, %0                     \n\t"
         " jb 1b                         \n\t"
         : "+r" (i)
@@ -896,7 +885,7 @@ static void sub_hfyu_median_prediction_mmxext(uint8_t *dst, const uint8_t *src1,
     "pxor " #z ", " #a "              \n\t"\
     "psubw " #z ", " #a "             \n\t"
 
-#define MMABS_MMXEXT(a, z)                 \
+#define MMABS_MMX2(a,z)\
     "pxor " #z ", " #z "              \n\t"\
     "psubw " #a ", " #z "             \n\t"\
     "pmaxsw " #z ", " #a "            \n\t"
@@ -920,7 +909,7 @@ static void sub_hfyu_median_prediction_mmxext(uint8_t *dst, const uint8_t *src1,
     "paddusw "#t", "#a"               \n\t"\
     "movd "#a", "#dst"                \n\t"\
 
-#define HSUM_MMXEXT(a, t, dst)             \
+#define HSUM_MMX2(a, t, dst)\
     "pshufw $0x0E, "#a", "#t"         \n\t"\
     "paddusw "#t", "#a"               \n\t"\
     "pshufw $0x01, "#a", "#t"         \n\t"\
@@ -935,6 +924,17 @@ static void sub_hfyu_median_prediction_mmxext(uint8_t *dst, const uint8_t *src1,
     "pshuflw $0x01, "#a", "#t"        \n\t"\
     "paddusw "#t", "#a"               \n\t"\
     "movd "#a", "#dst"                \n\t"\
+
+#define hadamard_func(cpu) \
+int ff_hadamard8_diff_##cpu  (void *s, uint8_t *src1, uint8_t *src2, \
+                              int stride, int h); \
+int ff_hadamard8_diff16_##cpu(void *s, uint8_t *src1, uint8_t *src2, \
+                              int stride, int h);
+
+hadamard_func(mmx)
+hadamard_func(mmx2)
+hadamard_func(sse2)
+hadamard_func(ssse3)
 
 #define DCT_SAD4(m,mm,o)\
     "mov"#m" "#o"+ 0(%1), "#mm"2      \n\t"\
@@ -982,9 +982,9 @@ DCT_SAD_FUNC(mmx)
 #undef MMABS
 #undef HSUM
 
-#define HSUM(a,t,dst) HSUM_MMXEXT(a,t,dst)
-#define MMABS(a,z)    MMABS_MMXEXT(a,z)
-DCT_SAD_FUNC(mmxext)
+#define HSUM(a,t,dst) HSUM_MMX2(a,t,dst)
+#define MMABS(a,z)    MMABS_MMX2(a,z)
+DCT_SAD_FUNC(mmx2)
 #undef HSUM
 #undef DCT_SAD
 
@@ -993,7 +993,7 @@ DCT_SAD_FUNC(mmxext)
 DCT_SAD_FUNC(sse2)
 #undef MMABS
 
-#if HAVE_SSSE3_INLINE
+#if HAVE_SSSE3
 #define MMABS(a,z)    MMABS_SSSE3(a,z)
 DCT_SAD_FUNC(ssse3)
 #undef MMABS
@@ -1052,7 +1052,7 @@ static int ssd_int8_vs_int16_mmx(const int8_t *pix1, const int16_t *pix2, int si
 #define SET_RND MOVQ_WONE
 #define SCALE_OFFSET 1
 
-#include "dsputil_qns_template.c"
+#include "dsputil_mmx_qns_template.c"
 
 #undef DEF
 #undef SET_RND
@@ -1066,14 +1066,14 @@ static int ssd_int8_vs_int16_mmx(const int8_t *pix1, const int16_t *pix2, int si
     "pmulhrw " #s ", "#x "           \n\t"\
     "pmulhrw " #s ", "#y "           \n\t"
 
-#include "dsputil_qns_template.c"
+#include "dsputil_mmx_qns_template.c"
 
 #undef DEF
 #undef SET_RND
 #undef SCALE_OFFSET
 #undef PMULHRW
 
-#if HAVE_SSSE3_INLINE
+#if HAVE_SSSE3
 #undef PHADDD
 #define DEF(x) x ## _ssse3
 #define SET_RND(x)
@@ -1085,35 +1085,19 @@ static int ssd_int8_vs_int16_mmx(const int8_t *pix1, const int16_t *pix2, int si
     "pmulhrsw " #s ", "#x "          \n\t"\
     "pmulhrsw " #s ", "#y "          \n\t"
 
-#include "dsputil_qns_template.c"
+#include "dsputil_mmx_qns_template.c"
 
 #undef DEF
 #undef SET_RND
 #undef SCALE_OFFSET
 #undef PMULHRW
 #undef PHADDD
-#endif /* HAVE_SSSE3_INLINE */
+#endif //HAVE_SSSE3
 
-#endif /* HAVE_INLINE_ASM */
 
-int ff_sse16_sse2(void *v, uint8_t * pix1, uint8_t * pix2, int line_size, int h);
-
-#define hadamard_func(cpu) \
-int ff_hadamard8_diff_##cpu  (void *s, uint8_t *src1, uint8_t *src2, \
-                              int stride, int h); \
-int ff_hadamard8_diff16_##cpu(void *s, uint8_t *src1, uint8_t *src2, \
-                              int stride, int h);
-
-hadamard_func(mmx)
-hadamard_func(mmxext)
-hadamard_func(sse2)
-hadamard_func(ssse3)
-
-void ff_dsputilenc_init_mmx(DSPContext* c, AVCodecContext *avctx)
+void dsputilenc_init_mmx(DSPContext* c, AVCodecContext *avctx)
 {
     int mm_flags = av_get_cpu_flags();
-
-#if HAVE_INLINE_ASM
     int bit_depth = avctx->bits_per_raw_sample;
 
     if (mm_flags & AV_CPU_FLAG_MMX) {
@@ -1122,8 +1106,8 @@ void ff_dsputilenc_init_mmx(DSPContext* c, AVCodecContext *avctx)
             (dct_algo==FF_DCT_AUTO || dct_algo==FF_DCT_MMX)) {
             if(mm_flags & AV_CPU_FLAG_SSE2){
                 c->fdct = ff_fdct_sse2;
-            } else if (mm_flags & AV_CPU_FLAG_MMXEXT) {
-                c->fdct = ff_fdct_mmxext;
+            }else if(mm_flags & AV_CPU_FLAG_MMX2){
+                c->fdct = ff_fdct_mmx2;
             }else{
                 c->fdct = ff_fdct_mmx;
             }
@@ -1137,9 +1121,14 @@ void ff_dsputilenc_init_mmx(DSPContext* c, AVCodecContext *avctx)
         c->diff_bytes= diff_bytes_mmx;
         c->sum_abs_dctelem= sum_abs_dctelem_mmx;
 
+#if HAVE_YASM
+        c->hadamard8_diff[0]= ff_hadamard8_diff16_mmx;
+        c->hadamard8_diff[1]= ff_hadamard8_diff_mmx;
+#endif
+
         c->pix_norm1 = pix_norm1_mmx;
-        c->sse[0] = sse16_mmx;
-        c->sse[1] = sse8_mmx;
+        c->sse[0] = (HAVE_YASM && mm_flags & AV_CPU_FLAG_SSE2) ? ff_sse16_sse2 : sse16_mmx;
+          c->sse[1] = sse8_mmx;
         c->vsad[4]= vsad_intra16_mmx;
 
         c->nsse[0] = nsse16_mmx;
@@ -1155,30 +1144,43 @@ void ff_dsputilenc_init_mmx(DSPContext* c, AVCodecContext *avctx)
 
         c->ssd_int8_vs_int16 = ssd_int8_vs_int16_mmx;
 
-        if (mm_flags & AV_CPU_FLAG_MMXEXT) {
-            c->sum_abs_dctelem = sum_abs_dctelem_mmxext;
-            c->vsad[4]         = vsad_intra16_mmxext;
+
+        if (mm_flags & AV_CPU_FLAG_MMX2) {
+            c->sum_abs_dctelem= sum_abs_dctelem_mmx2;
+#if HAVE_YASM
+            c->hadamard8_diff[0]= ff_hadamard8_diff16_mmx2;
+            c->hadamard8_diff[1]= ff_hadamard8_diff_mmx2;
+#endif
+            c->vsad[4]= vsad_intra16_mmx2;
 
             if(!(avctx->flags & CODEC_FLAG_BITEXACT)){
-                c->vsad[0] = vsad16_mmxext;
+                c->vsad[0] = vsad16_mmx2;
             }
 
-            c->sub_hfyu_median_prediction = sub_hfyu_median_prediction_mmxext;
+            c->sub_hfyu_median_prediction= sub_hfyu_median_prediction_mmx2;
         }
 
         if(mm_flags & AV_CPU_FLAG_SSE2){
             if (bit_depth <= 8)
                 c->get_pixels = get_pixels_sse2;
             c->sum_abs_dctelem= sum_abs_dctelem_sse2;
+#if HAVE_YASM && HAVE_ALIGNED_STACK
+            c->hadamard8_diff[0]= ff_hadamard8_diff16_sse2;
+            c->hadamard8_diff[1]= ff_hadamard8_diff_sse2;
+#endif
         }
 
-#if HAVE_SSSE3_INLINE
+#if HAVE_SSSE3
         if(mm_flags & AV_CPU_FLAG_SSSE3){
             if(!(avctx->flags & CODEC_FLAG_BITEXACT)){
                 c->try_8x8basis= try_8x8basis_ssse3;
             }
             c->add_8x8basis= add_8x8basis_ssse3;
             c->sum_abs_dctelem= sum_abs_dctelem_ssse3;
+#if HAVE_YASM && HAVE_ALIGNED_STACK
+            c->hadamard8_diff[0]= ff_hadamard8_diff16_ssse3;
+            c->hadamard8_diff[1]= ff_hadamard8_diff_ssse3;
+#endif
         }
 #endif
 
@@ -1189,31 +1191,6 @@ void ff_dsputilenc_init_mmx(DSPContext* c, AVCodecContext *avctx)
             c->add_8x8basis= add_8x8basis_3dnow;
         }
     }
-#endif /* HAVE_INLINE_ASM */
 
-    if (EXTERNAL_MMX(mm_flags)) {
-        c->hadamard8_diff[0] = ff_hadamard8_diff16_mmx;
-        c->hadamard8_diff[1] = ff_hadamard8_diff_mmx;
-
-        if (EXTERNAL_MMXEXT(mm_flags)) {
-            c->hadamard8_diff[0] = ff_hadamard8_diff16_mmxext;
-            c->hadamard8_diff[1] = ff_hadamard8_diff_mmxext;
-        }
-
-        if (EXTERNAL_SSE2(mm_flags)) {
-            c->sse[0] = ff_sse16_sse2;
-
-#if HAVE_ALIGNED_STACK
-            c->hadamard8_diff[0] = ff_hadamard8_diff16_sse2;
-            c->hadamard8_diff[1] = ff_hadamard8_diff_sse2;
-#endif
-        }
-
-        if (EXTERNAL_SSSE3(mm_flags) && HAVE_ALIGNED_STACK) {
-            c->hadamard8_diff[0] = ff_hadamard8_diff16_ssse3;
-            c->hadamard8_diff[1] = ff_hadamard8_diff_ssse3;
-        }
-    }
-
-    ff_dsputil_init_pix_mmx(c, avctx);
+    dsputil_init_pix_mmx(c, avctx);
 }

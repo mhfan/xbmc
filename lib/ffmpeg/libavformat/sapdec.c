@@ -30,6 +30,7 @@
 #if HAVE_POLL_H
 #include <poll.h>
 #endif
+#include <sys/time.h>
 
 struct SAPState {
     URLContext *ann_fd;
@@ -59,7 +60,8 @@ static int sap_read_close(AVFormatContext *s)
     return 0;
 }
 
-static int sap_read_header(AVFormatContext *s)
+static int sap_read_header(AVFormatContext *s,
+                           AVFormatParameters *ap)
 {
     struct SAPState *sap = s->priv_data;
     char host[1024], path[1024], url[1024];
@@ -227,11 +229,12 @@ static int sap_fetch_packet(AVFormatContext *s, AVPacket *pkt)
 
 AVInputFormat ff_sap_demuxer = {
     .name           = "sap",
-    .long_name      = NULL_IF_CONFIG_SMALL("SAP input"),
+    .long_name      = NULL_IF_CONFIG_SMALL("SAP input format"),
     .priv_data_size = sizeof(struct SAPState),
     .read_probe     = sap_probe,
     .read_header    = sap_read_header,
     .read_packet    = sap_fetch_packet,
     .read_close     = sap_read_close,
-    .flags          = AVFMT_NOFILE,
+    .flags = AVFMT_NOFILE,
 };
+

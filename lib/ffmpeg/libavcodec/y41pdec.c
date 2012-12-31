@@ -21,11 +21,10 @@
  */
 
 #include "avcodec.h"
-#include "internal.h"
 
 static av_cold int y41p_decode_init(AVCodecContext *avctx)
 {
-    avctx->pix_fmt             = AV_PIX_FMT_YUV411P;
+    avctx->pix_fmt             = PIX_FMT_YUV411P;
     avctx->bits_per_raw_sample = 12;
 
     if (avctx->width & 7) {
@@ -42,7 +41,7 @@ static av_cold int y41p_decode_init(AVCodecContext *avctx)
 }
 
 static int y41p_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame, AVPacket *avpkt)
+                             int *data_size, AVPacket *avpkt)
 {
     AVFrame *pic = avctx->coded_frame;
     uint8_t *src = avpkt->data;
@@ -59,7 +58,7 @@ static int y41p_decode_frame(AVCodecContext *avctx, void *data,
 
     pic->reference = 0;
 
-    if (ff_get_buffer(avctx, pic) < 0) {
+    if (avctx->get_buffer(avctx, pic) < 0) {
         av_log(avctx, AV_LOG_ERROR, "Could not allocate buffer.\n");
         return AVERROR(ENOMEM);
     }
@@ -89,7 +88,7 @@ static int y41p_decode_frame(AVCodecContext *avctx, void *data,
         }
     }
 
-    *got_frame = 1;
+    *data_size = sizeof(AVFrame);
     *(AVFrame *)data = *pic;
 
     return avpkt->size;
@@ -108,7 +107,7 @@ static av_cold int y41p_decode_close(AVCodecContext *avctx)
 AVCodec ff_y41p_decoder = {
     .name         = "y41p",
     .type         = AVMEDIA_TYPE_VIDEO,
-    .id           = AV_CODEC_ID_Y41P,
+    .id           = CODEC_ID_Y41P,
     .init         = y41p_decode_init,
     .decode       = y41p_decode_frame,
     .close        = y41p_decode_close,

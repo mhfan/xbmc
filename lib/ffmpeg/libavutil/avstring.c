@@ -20,13 +20,10 @@
  */
 
 #include <stdarg.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 #include "avstring.h"
-#include "config.h"
-#include "common.h"
 #include "mem.h"
 
 int av_strstart(const char *str, const char *pfx, const char **ptr)
@@ -213,48 +210,9 @@ int av_strncasecmp(const char *a, const char *b, size_t n)
     return c1 - c2;
 }
 
-const char *av_basename(const char *path)
-{
-    char *p = strrchr(path, '/');
-
-#if HAVE_DOS_PATHS
-    char *q = strrchr(path, '\\');
-    char *d = strchr(path, ':');
-
-    p = FFMAX3(p, q, d);
-#endif
-
-    if (!p)
-        return path;
-
-    return p + 1;
-}
-
-const char *av_dirname(char *path)
-{
-    char *p = strrchr(path, '/');
-
-#if HAVE_DOS_PATHS
-    char *q = strrchr(path, '\\');
-    char *d = strchr(path, ':');
-
-    d = d ? d + 1 : d;
-
-    p = FFMAX3(p, q, d);
-#endif
-
-    if (!p)
-        return ".";
-
-    *p = '\0';
-
-    return path;
-}
-
-
 #ifdef TEST
 
-#include "common.h"
+#undef printf
 
 int main(void)
 {
@@ -292,13 +250,10 @@ int main(void)
         };
 
         for (i=0; i < FF_ARRAY_ELEMS(strings); i++) {
-            const char *p = strings[i];
-            char *q;
+            const char *p= strings[i];
             printf("|%s|", p);
-            q = av_get_token(&p, ":");
-            printf(" -> |%s|", q);
+            printf(" -> |%s|", av_get_token(&p, ":"));
             printf(" + |%s|\n", p);
-            av_free(q);
         }
     }
 
